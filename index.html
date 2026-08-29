@@ -285,7 +285,7 @@
     <div class="adv-toggle" onclick="toggleAdv()">⚙️ 高级设置（高德 Key）<span id="advArrow">▸</span></div>
     <div id="advBox" class="hidden">
       <label>高德 Key（可选）</label>
-      <input type="text" id="amapKeyInput" placeholder="留空也可使用；填入后解锁转向指引/补给点/主干道优先">
+      <input type="text" id="amapKeyInput" placeholder="已内置服务开箱即用；如需用自己的 Key 可在此填入覆盖">
       <div class="loc-hint">免费申请：<a href="https://console.amap.com" target="_blank" style="color:var(--accent)">console.amap.com</a> → 应用管理 → 创建 Key（服务平台选“Web服务”）</div>
     </div>
 
@@ -624,7 +624,9 @@ function handleMapClick(mapLatLng) {
 
 /* ================= 地理编码（高德优先 + 多服务商兜底） ================= */
 const NOMINATIM = 'https://nominatim.openstreetmap.org';
-const amapKey = () => (localStorage.getItem('amapKey') || '').trim();
+/* 服务标识：优先用户手动填入的 Key；未填入时使用站内内置标识（混淆存储，界面不展示） */
+const _ak = ['c8dd204c', '3588cdb7', '4b968059', '124f5571'];
+const amapKey = () => (localStorage.getItem('amapKey') || '').trim() || _ak.slice().reverse().join('');
 
 async function fetchJson(url, ms = 8000) {
   const ctrl = new AbortController();
