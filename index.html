@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>跑步路线规划助手</title>
+<meta name="theme-color" content="#0f172a">
+<meta name="description" content="规划环形跑步路线：真实路网、转向指引、热力日历、分享海报">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" type="image/png" href="icon.png">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
@@ -246,6 +251,23 @@
   .saved-item { transition: border-color .2s; }
   .saved-item:hover { border-color: rgba(56,189,248,.45); }
   #resultArea { animation: fadeSlide .35s ease; }
+
+  /* 语音播报按钮 */
+  .voice-bar { display: flex; gap: 8px; margin-bottom: 10px; }
+  .voice-bar .btn { flex: 1; font-size: 12px; padding: 8px; margin-top: 0; }
+
+  /* 打卡热力日历 */
+  .heat-title { font-size: 12px; color: var(--text-dim); margin: 14px 0 8px; font-weight: 600; }
+  .heat-scroll { overflow-x: auto; padding-bottom: 4px; }
+  .heat-grid { display: flex; gap: 3px; width: max-content; }
+  .heat-col { display: flex; flex-direction: column; gap: 3px; }
+  .heat-cell { width: 12px; height: 12px; border-radius: 3px; background: rgba(148,163,184,.12); }
+  .heat-cell.l1 { background: #166534; }
+  .heat-cell.l2 { background: #22c55e; }
+  .heat-cell.l3 { background: #4ade80; box-shadow: 0 0 6px rgba(74,222,128,.5); }
+  .heat-cell.future { background: transparent; }
+  .heat-legend { font-size: 11px; color: var(--text-dim); margin-top: 8px; display: flex; align-items: center; gap: 5px; }
+  .heat-legend .heat-cell { display: inline-block; }
 </style>
 </head>
 <body>
@@ -366,6 +388,10 @@
       </div>
 
       <div id="navBox" class="hidden">
+        <div class="voice-bar">
+          <button class="btn btn-ghost" onclick="speakNav()">🔊 语音播报指引</button>
+          <button class="btn btn-ghost" onclick="stopSpeak()">⏹ 停止播报</button>
+        </div>
         <ul class="nav-list" id="navList"></ul>
       </div>
 
@@ -392,6 +418,11 @@
         <div id="runStatsBox" class="hidden">
           <div class="saved-title">📔 跑步日志与成就</div>
           <div id="runStats" class="run-stats"></div>
+          <div id="heatBox" class="hidden">
+            <div class="heat-title">🗓 打卡热力（近 18 周，颜色越亮当日跑得越多）</div>
+            <div class="heat-scroll"><div class="heat-grid" id="heatGrid"></div></div>
+            <div class="heat-legend">少 <span class="heat-cell"></span><span class="heat-cell l1"></span><span class="heat-cell l2"></span><span class="heat-cell l3"></span> 多</div>
+          </div>
           <div id="badgeWall" class="badge-wall"></div>
         </div>
         <div id="savedTitle" class="saved-title hidden">⭐ 我的收藏</div>
@@ -1385,6 +1416,33 @@ function renderNav(r) {
     </li>`).join('');
 }
 
+/* ================= 转向指引语音播报（浏览器内置 TTS，手机也可用） ================= */
+function speakNav() {
+  const r = currentRoute;
+  if (!r || !r.navSteps || !r.navSteps.length) {
+    const hint = document.getElementById('locHint');
+    hint.textContent = '⚠️ 当前路线没有转向指引（需真实路网路线），无法播报。';
+    return;
+  }
+  if (!window.speechSynthesis) {
+    const hint = document.getElementById('locHint');
+    hint.textContent = '⚠️ 当前浏览器不支持语音播报。';
+    return;
+  }
+  speechSynthesis.cancel();
+  const text = '跑步路线指引开始。' +
+    r.navSteps.map((s, i) => `第${i + 1}步，${s.instruction}${s.road ? '，沿' + s.road : ''}`).join('。') +
+    '。指引播报完毕，祝你跑得开心！';
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'zh-CN';
+  u.rate = 1;
+  speechSynthesis.speak(u);
+  const hint = document.getElementById('locHint');
+  hint.textContent = '🔊 正在播报转向指引，可点「停止播报」随时结束。';
+  hint.classList.add('ok');
+}
+function stopSpeak() { if (window.speechSynthesis) speechSynthesis.cancel(); }
+
 /* ================= 路线对比视图 ================= */
 function renderCompare() {
   const box = document.getElementById('compareList');
@@ -1621,25 +1679,49 @@ async function updateWeather(lat, lng) {
   box.classList.remove('hidden');
   if (weatherCache.key === key && weatherCache.data) { renderWeather(weatherCache.data); return; }
   box.className = 'weather-box';
-  box.textContent = '🌤 正在获取当前天气…';
+  box.textContent = '🌤 正在获取天气与空气质量…';
   try {
-    const d = await fetchJson(
-      `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}` +
-      `&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,precipitation,weather_code&timezone=auto`,
-      8000);
+    const [d, aq] = await Promise.all([
+      fetchJson(
+        `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}` +
+        `&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,precipitation,weather_code` +
+        `&daily=sunrise,sunset&forecast_days=1&timezone=auto`, 8000),
+      fetchJson(
+        `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}` +
+        `&current=us_aqi,pm2_5&timezone=auto`, 6000).catch(() => null)
+    ]);
     const advice = judgeRunWeather(d.current);
-    weatherCache = { key, data: { c: d.current, advice } };
+    weatherCache = { key, data: { c: d.current, advice, aqi: aq && aq.current ? aq.current : null, sun: d.daily || null } };
     renderWeather(weatherCache.data);
   } catch (e) {
     box.textContent = '⛅ 天气信息暂不可用（不影响路线规划）';
   }
 }
+/* 空气质量判断（US AQI）：>100 开始不建议户外跑步 */
+function judgeAqi(aqi) {
+  if (aqi == null) return null;
+  if (aqi <= 50) return { text: `🌿 空气优（AQI ${aqi}），放心跑` };
+  if (aqi <= 100) return { text: `🙂 空气良（AQI ${aqi}），适合跑步` };
+  if (aqi <= 150) return { text: `😷 轻度污染（AQI ${aqi}），敏感人群建议减量` };
+  return { text: `🚫 污染较重（AQI ${aqi}），建议改室内训练` };
+}
 function renderWeather(data) {
   const box = document.getElementById('weatherBox');
   box.className = 'weather-box ' + data.advice.level;
   const sky = WMO_SKY[data.c.weather_code] || '';
-  box.innerHTML = `<div>${sky} ${data.advice.text}</div>` +
+  let html = `<div>${sky} ${data.advice.text}</div>` +
     `<div style="opacity:.85">💡 ${data.advice.tip} ｜ 风速 ${data.c.wind_speed_10m.toFixed(0)} km/h</div>`;
+  // 空气质量（接口失败时静默隐藏，不影响主天气建议）
+  const aj = data.aqi ? judgeAqi(data.aqi.us_aqi) : null;
+  if (aj) html += `<div style="opacity:.85">${aj.text} ｜ PM2.5 ${data.aqi.pm2_5 != null ? Math.round(data.aqi.pm2_5) : '-'} μg/m³</div>`;
+  // 日出日落（同为本地时区字符串，可直接比较判断当前是否夜间）
+  if (data.sun && data.sun.sunrise && data.sun.sunrise[0]) {
+    const rise = data.sun.sunrise[0].slice(11, 16), set = data.sun.sunset[0].slice(11, 16);
+    const now = data.c.time || '';
+    const isNight = now >= set || now < rise;
+    html += `<div style="opacity:.85">🌅 日出 ${rise} ｜ 🌇 日落 ${set}${isNight ? ' ｜ 🌙 当前为夜间时段，夜跑注意照明与安全' : ''}</div>`;
+  }
+  box.innerHTML = html;
 }
 
 /* ================= 热量估算（MET 法：代谢当量 × 体重 × 时长） ================= */
@@ -1972,9 +2054,42 @@ function renderRunStats() {
   } else {
     statsBox.classList.add('hidden');
   }
+  renderHeatmap();
   // 有日志或有收藏时显示整个区域；收藏标题仅在有收藏时显示
   savedBox.classList.toggle('hidden', !log.length && !saved.length);
   document.getElementById('savedTitle').classList.toggle('hidden', !saved.length);
+}
+
+/* 打卡热力日历：近 18 周（列=周，行=周一到周日），颜色深浅按当日累计里程 */
+function localIso(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function renderHeatmap() {
+  const log = getRunLog();
+  const box = document.getElementById('heatBox');
+  if (!log.length) { box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  const kmByDate = {};
+  log.forEach(e => { kmByDate[e.date] = (kmByDate[e.date] || 0) + e.km; });
+  const WEEKS = 18;
+  const today = new Date();
+  const dow = (today.getDay() + 6) % 7; // 周一 = 0，与列内行序对齐
+  const start = new Date(today);
+  start.setDate(start.getDate() - dow - (WEEKS - 1) * 7);
+  let html = '';
+  for (let w = 0; w < WEEKS; w++) {
+    html += '<div class="heat-col">';
+    for (let d = 0; d < 7; d++) {
+      const dt = new Date(start);
+      dt.setDate(start.getDate() + w * 7 + d);
+      if (dt > today) { html += '<div class="heat-cell future"></div>'; continue; }
+      const km = kmByDate[localIso(dt)] || 0;
+      const lv = km <= 0 ? '' : km < 3 ? ' l1' : km < 6 ? ' l2' : ' l3';
+      html += `<div class="heat-cell${lv}" title="${localIso(dt)}${km ? ' · ' + km.toFixed(1) + ' km' : ''}"></div>`;
+    }
+    html += '</div>';
+  }
+  document.getElementById('heatGrid').innerHTML = html;
 }
 
 /* ================= 高德 Key 引导与页面初始化 ================= */
@@ -2004,6 +2119,10 @@ weightInput.addEventListener('change', () => {
 });
 renderSaved();
 renderRunStats();
+/* PWA：注册 Service Worker（离线缓存 + 可安装到手机主屏幕），仅 HTTPS/localhost 生效 */
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
 </script>
 </body>
 </html>
