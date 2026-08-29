@@ -1,0 +1,2007 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>跑步路线规划助手</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary: #22c55e;
+    --primary-dark: #16a34a;
+    --bg: #0f172a;
+    --card: #1e293b;
+    --card-light: #283548;
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --accent: #38bdf8;
+    --warn: #f59e0b;
+  }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    background: linear-gradient(160deg, #0f172a 0%, #1e293b 60%, #14532d 160%);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  header { padding: 28px 24px 12px; text-align: center; }
+  header h1 {
+    font-size: 26px; letter-spacing: 1px;
+    background: linear-gradient(90deg, #4ade80, #38bdf8);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  header p { color: var(--text-dim); font-size: 13px; margin-top: 6px; }
+  .container {
+    max-width: 1100px; margin: 0 auto; padding: 16px 20px 40px;
+    display: grid; grid-template-columns: 340px 1fr; gap: 20px;
+  }
+  @media (max-width: 860px) { .container { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--card);
+    border: 1px solid rgba(148,163,184,.15);
+    border-radius: 16px; padding: 20px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.35);
+  }
+  .card h2 { font-size: 15px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .card h2 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 8px var(--primary); }
+  label { display: block; font-size: 12px; color: var(--text-dim); margin: 12px 0 6px; }
+  input[type=text], input[type=number], select {
+    width: 100%; background: var(--card-light);
+    border: 1px solid rgba(148,163,184,.2);
+    border-radius: 10px; color: var(--text);
+    padding: 10px 12px; font-size: 14px; outline: none; transition: border-color .2s;
+  }
+  input:focus, select:focus { border-color: var(--primary); }
+  .loc-hint { font-size: 11px; color: var(--text-dim); margin-top: 6px; line-height: 1.6; white-space: pre-line; }
+  .loc-hint.ok { color: #4ade80; }
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; }
+  .seg {
+    display: flex; background: var(--card-light);
+    border-radius: 10px; overflow: hidden;
+    border: 1px solid rgba(148,163,184,.2);
+  }
+  .seg button {
+    flex: 1; padding: 9px 0; background: transparent; border: none;
+    color: var(--text-dim); cursor: pointer; font-size: 13px; transition: all .2s;
+  }
+  .seg button.active { background: var(--primary); color: #052e16; font-weight: 600; }
+  .checkbox-line { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-top: 10px; cursor: pointer; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    border: none; border-radius: 10px; padding: 12px 18px;
+    font-size: 14px; cursor: pointer; transition: transform .15s, filter .15s;
+  }
+  .btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+  .btn-primary {
+    background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+    color: #052e16; font-weight: 700; width: 100%; margin-top: 18px;
+  }
+  .btn-ghost {
+    background: transparent; border: 1px solid rgba(148,163,184,.35);
+    color: var(--text-dim); width: 100%; font-size: 12px; padding: 8px 0;
+  }
+  .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 16px; }
+  .stat { background: var(--card-light); border-radius: 12px; padding: 12px 6px; text-align: center; }
+  .stat .v { font-size: 17px; font-weight: 700; color: var(--primary); }
+  .stat .k { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+  @media (max-width: 560px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .toggle-bar { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .chip {
+    padding: 6px 14px; border-radius: 999px; font-size: 12px; cursor: pointer;
+    border: 1px solid rgba(148,163,184,.3); color: var(--text-dim);
+    background: transparent; transition: all .2s;
+  }
+  .chip.active { background: var(--accent); color: #082f49; border-color: var(--accent); font-weight: 600; }
+  #mapBox {
+    height: 440px; border-radius: 14px; overflow: hidden;
+    border: 1px solid rgba(148,163,184,.12); position: relative; background: #0b1220;
+  }
+  #realMap { height: 100%; width: 100%; }
+  .leaflet-container { font: inherit; }
+  .empty { padding: 80px 20px; text-align: center; color: var(--text-dim); font-size: 13px; line-height: 2; }
+  .waypoint-list { list-style: none; max-height: 420px; overflow-y: auto; }
+  .waypoint-list li {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 12px 6px; border-bottom: 1px dashed rgba(148,163,184,.15);
+  }
+  .wp-idx {
+    flex: none; width: 26px; height: 26px; border-radius: 50%;
+    background: var(--primary); color: #052e16; font-weight: 700; font-size: 12px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .wp-idx.start { background: var(--accent); color: #082f49; }
+  .wp-idx.end { background: var(--warn); color: #451a03; }
+  .wp-name { font-size: 14px; }
+  .wp-meta { font-size: 12px; color: var(--text-dim); margin-top: 3px; }
+  .note {
+    margin-top: 14px; background: rgba(245,158,11,.1);
+    border: 1px solid rgba(245,158,11,.35); color: #fcd34d;
+    border-radius: 10px; padding: 10px 14px; font-size: 12px; line-height: 1.7;
+  }
+  .alternatives { margin-top: 16px; display: flex; gap: 10px; }
+  .alternatives .btn { flex: 1; font-size: 13px; padding: 10px; }
+  .hidden { display: none !important; }
+  .spinner {
+    display: inline-block; width: 14px; height: 14px;
+    border: 2px solid rgba(5,46,22,.3); border-top-color: #052e16;
+    border-radius: 50%; animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  footer { text-align: center; color: rgba(148,163,184,.5); font-size: 11px; padding-bottom: 24px; }
+
+  /* 高德 Key 引导卡片 */
+  .key-guide { max-width: 1100px; margin: 0 auto; padding: 12px 20px 0; }
+  .key-guide .kg-box { background: rgba(56,189,248,.08); border: 1px solid rgba(56,189,248,.35); border-radius: 12px; padding: 12px 16px; display: flex; gap: 12px; align-items: flex-start; font-size: 12px; color: #bae6fd; line-height: 1.8; }
+  .key-guide b { color: #e0f2fe; }
+  .kg-close { flex: none; background: transparent; border: 1px solid rgba(186,230,253,.4); color: #bae6fd; border-radius: 8px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+
+  /* 地点搜索候选列表 */
+  #candidatePanel { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .cand-item { text-align: left; background: var(--card-light); border: 1px solid rgba(148,163,184,.2); color: var(--text); border-radius: 8px; padding: 8px 10px; font-size: 12px; cursor: pointer; transition: border-color .2s; }
+  .cand-item:hover { border-color: var(--accent); }
+
+  /* 转向指引 */
+  .nav-list { list-style: none; max-height: 420px; overflow-y: auto; }
+  .nav-list li { display: flex; gap: 10px; padding: 10px 6px; border-bottom: 1px dashed rgba(148,163,184,.15); font-size: 13px; line-height: 1.6; }
+  .nav-icon { flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--card-light); display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .nav-road { color: var(--accent); font-size: 12px; }
+  .nav-dist { color: var(--text-dim); font-size: 11px; }
+
+  /* 路线对比 */
+  .compare-card { background: var(--card-light); border: 1px solid rgba(148,163,184,.2); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; cursor: pointer; transition: border-color .2s; }
+  .compare-card:hover { border-color: var(--accent); }
+  .compare-card.active { border-color: var(--primary); }
+  .compare-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+  .compare-meta { font-size: 12px; color: var(--text-dim); line-height: 1.9; }
+
+  /* 收藏路线 */
+  .saved-title { font-size: 12px; color: var(--text-dim); margin: 16px 0 8px; font-weight: 600; }
+  .saved-item { display: flex; align-items: center; gap: 8px; background: var(--card-light); border: 1px solid rgba(148,163,184,.15); border-radius: 10px; padding: 8px 12px; margin-bottom: 6px; font-size: 12px; }
+  .saved-item .grow { flex: 1; cursor: pointer; line-height: 1.6; }
+  .saved-item .del { background: transparent; border: none; color: var(--text-dim); cursor: pointer; font-size: 14px; }
+  .saved-item .del:hover { color: #f87171; }
+
+  /* 励志名言轮播 */
+  .quote-bar { max-width: 1100px; margin: -6px auto 2px; padding: 0 20px; text-align: center; min-height: 24px; }
+  #quoteText { display: inline-block; font-size: 13px; color: #86efac; font-style: italic; transition: opacity .5s; line-height: 1.8; text-shadow: 0 0 18px rgba(74,222,128,.25); }
+  #quoteText.fade { opacity: 0; }
+
+  /* 天气跑步建议 */
+  .weather-box { margin-top: 10px; border-radius: 10px; padding: 10px 12px; font-size: 12px; line-height: 1.8; border: 1px solid rgba(148,163,184,.2); background: var(--card-light); color: var(--text); }
+  .weather-box.good { border-color: rgba(74,222,128,.5); color: #bbf7d0; }
+  .weather-box.warn { border-color: rgba(245,158,11,.5); color: #fde68a; }
+  .weather-box.bad { border-color: rgba(248,113,113,.5); color: #fecaca; }
+
+  /* 分享海报弹窗 */
+  .modal { position: fixed; inset: 0; background: rgba(2,6,23,.82); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
+  .modal-card { max-width: 430px; width: 100%; text-align: center; }
+  #posterImg { width: 100%; border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
+  .modal-btns { display: flex; gap: 10px; margin-top: 14px; }
+  .modal-btns .btn { flex: 1; margin-top: 0; text-decoration: none; }
+  .modal-tip { margin-top: 10px; font-size: 12px; color: var(--text-dim); }
+
+  /* 路线点评 */
+  .review-box { margin-top: 14px; background: var(--card-light); border: 1px solid rgba(148,163,184,.15); border-radius: 12px; padding: 12px 14px; }
+  .review-title { font-size: 12px; color: var(--text-dim); margin-bottom: 8px; font-weight: 600; }
+  .review-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .review-row .rlabel { width: 64px; color: var(--text-dim); font-size: 12px; flex: none; }
+  .review-row .rval { font-size: 11px; color: var(--text-dim); margin-left: 6px; }
+  .star { cursor: pointer; font-size: 19px; color: rgba(148,163,184,.3); transition: color .15s, transform .1s; user-select: none; }
+  .star:hover { transform: scale(1.25); }
+  .star.on { color: #fbbf24; }
+
+  /* 跑步日志与成就徽章 */
+  .run-stats { font-size: 13px; background: var(--card-light); border-radius: 10px; padding: 10px 12px; line-height: 1.9; }
+  .badge-wall { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .badge { font-size: 11px; color: var(--text-dim); background: var(--card-light); border: 1px solid rgba(148,163,184,.15); border-radius: 999px; padding: 4px 10px; cursor: default; }
+  .badge.won { color: #fcd34d; border-color: rgba(251,191,36,.45); background: rgba(251,191,36,.08); }
+  .badge.locked { opacity: .4; filter: grayscale(.9); }
+
+  /* 高级设置折叠面板（高德 Key 默认隐藏） */
+  .adv-toggle {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 14px; padding: 9px 12px; border-radius: 10px; cursor: pointer;
+    background: rgba(56,189,248,.06); border: 1px dashed rgba(56,189,248,.3);
+    color: var(--text-dim); font-size: 12px; user-select: none; transition: all .2s;
+  }
+  .adv-toggle:hover { border-color: rgba(56,189,248,.6); color: #bae6fd; background: rgba(56,189,248,.1); }
+  .adv-toggle span { transition: transform .2s; }
+  #advBox { margin-top: 8px; padding: 4px 2px 2px; animation: fadeSlide .25s ease; }
+  @keyframes fadeSlide { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+  /* ================= 整体美化增强 ================= */
+  body { background: radial-gradient(1000px 600px at 85% -10%, rgba(56,189,248,.12), transparent 60%),
+                     radial-gradient(900px 600px at -10% 110%, rgba(74,222,128,.1), transparent 55%),
+                     linear-gradient(160deg, #0f172a 0%, #16213a 60%, #14532d 170%);
+         background-attachment: fixed; }
+  ::selection { background: rgba(74,222,128,.35); }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgba(148,163,184,.3); border-radius: 8px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,.5); }
+  ::-webkit-scrollbar-track { background: transparent; }
+  header h1 { font-size: 30px; text-shadow: 0 0 30px rgba(74,222,128,.3); }
+  .card { backdrop-filter: blur(6px); border-color: rgba(148,163,184,.18); }
+  .card h2 { letter-spacing: .5px; }
+  input[type=text]:focus, input[type=number]:focus, select:focus {
+    border-color: var(--primary); box-shadow: 0 0 0 3px rgba(34,197,94,.15);
+  }
+  .btn-primary {
+    box-shadow: 0 6px 20px rgba(34,197,94,.35);
+    background: linear-gradient(90deg, #22c55e 0%, #16a34a 55%, #0ea5e9 140%);
+  }
+  .btn-primary:hover { box-shadow: 0 8px 26px rgba(34,197,94,.5); }
+  .btn-ghost:hover { border-color: rgba(74,222,128,.5); color: var(--text); }
+  .seg button:hover { color: var(--text); }
+  .chip:hover { border-color: rgba(74,222,128,.55); color: var(--text); }
+  .chip.active { box-shadow: 0 2px 12px rgba(56,189,248,.35); }
+  .stat { border: 1px solid rgba(148,163,184,.12); transition: transform .15s, border-color .15s; }
+  .stat:hover { transform: translateY(-2px); border-color: rgba(74,222,128,.4); }
+  .stat .v { font-variant-numeric: tabular-nums; }
+  .compare-card:hover, .cand-item:hover { transform: translateX(2px); }
+  .compare-card, .cand-item { transition: border-color .2s, transform .15s; }
+  .saved-item { transition: border-color .2s; }
+  .saved-item:hover { border-color: rgba(56,189,248,.45); }
+  #resultArea { animation: fadeSlide .35s ease; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🏃 跑步路线规划助手</h1>
+  <p>真实地图 · 多候选地点 · 环形 / 往返路线 · 每 200 米一个途经点</p>
+</header>
+
+<div class="quote-bar"><span id="quoteText"></span></div>
+
+<div id="keyGuide" class="key-guide hidden">
+  <div class="kg-box">
+    <div style="flex:1">
+      <b>💡 接入免费高德 Key，解锁全部能力</b><br>
+      当前未填入高德 Key：路线可能是模拟直线（会穿过建筑物），转向指引、公园智能选向不可用。<br>
+      申请步骤：① 访问 <b>console.amap.com</b> 免费注册 → ② 创建应用并添加 Key（服务平台选 <b>「Web服务」</b>）→ ③ 展开左侧 ⚙️ 高级设置粘贴 Key，重新规划即生效。
+    </div>
+    <button class="kg-close" onclick="dismissKeyGuide()">知道了</button>
+  </div>
+</div>
+
+<div class="container">
+  <!-- 输入区 -->
+  <div class="card">
+    <h2><span class="dot"></span>输入信息</h2>
+
+    <label>当前位置（地点名称 / 地址 / GPS 坐标）</label>
+    <input type="text" id="locationInput" placeholder="如：奥林匹克森林公园南门">
+    <div id="locHint" class="loc-hint">推荐点击「获取我的定位」自动确定起点（可拖动蓝色「起」标记微调）。输入地点时若搜到多个结果，会列出候选供你选择。点选地图任意位置设置折返目标，规划时将自动生成往返路线；不点选则按目标距离生成 3 条环形路线。</div>
+    <div id="candidatePanel" class="hidden"></div>
+    <div style="margin-top:8px">
+      <button class="btn btn-ghost" id="gpsBtn" onclick="useGPS()">📍 获取我的定位（自动规划）</button>
+    </div>
+    <div id="weatherBox" class="weather-box hidden"></div>
+
+    <div class="adv-toggle" onclick="toggleAdv()">⚙️ 高级设置（高德 Key）<span id="advArrow">▸</span></div>
+    <div id="advBox" class="hidden">
+      <label>高德 Key（可选）</label>
+      <input type="text" id="amapKeyInput" placeholder="留空也可使用；填入后解锁转向指引/补给点/主干道优先">
+      <div class="loc-hint">免费申请：<a href="https://console.amap.com" target="_blank" style="color:var(--accent)">console.amap.com</a> → 应用管理 → 创建 Key（服务平台选“Web服务”）</div>
+    </div>
+
+    <label>目标类型</label>
+    <div class="seg" id="goalSeg">
+      <button class="active" data-mode="distance">按距离</button>
+      <button data-mode="time">按时间</button>
+    </div>
+
+    <div class="row" id="distanceRow">
+      <div>
+        <label>目标距离（公里）</label>
+        <input type="number" id="distanceInput" value="5" min="1" max="100" step="0.5">
+      </div>
+    </div>
+    <div class="row hidden" id="timeRow">
+      <div>
+        <label>目标时间（分钟）</label>
+        <input type="number" id="timeInput" value="30" min="5" max="600" step="5">
+      </div>
+      <div>
+        <label>配速（分/公里）</label>
+        <input type="number" id="paceInput" value="6" min="3" max="12" step="0.5">
+      </div>
+    </div>
+
+    <label>体重（公斤 · 用于热量估算）</label>
+    <input type="number" id="weightInput" value="65" min="30" max="200" step="1">
+
+    <label>折返目标（可选）</label>
+    <input type="text" id="endInput" placeholder="在地图上点选折返点，或输入地点名称">
+    <div class="loc-hint">点选地图任意位置设置折返目标 → 规划时自动生成往返路线；不点选则生成环形路线。</div>
+
+    <label class="checkbox-line">
+      <input type="checkbox" id="safeCheck" checked> 夜跑安全模式（选择照明良好的路段）
+    </label>
+
+    <label>输出形式</label>
+    <div class="seg" id="outSeg">
+      <button class="active" data-mode="map">路线图</button>
+      <button data-mode="list">途径地点清单</button>
+    </div>
+
+    <button class="btn btn-primary" id="planBtn" onclick="planRoute()">✨ 开始规划路线</button>
+  </div>
+
+  <!-- 输出区 -->
+  <div class="card">
+    <h2><span class="dot" style="background:var(--accent);box-shadow:0 0 8px var(--accent)"></span>规划结果</h2>
+
+    <div id="emptyState" class="empty">
+      填写左侧信息后点击「开始规划路线」<br>
+      即可获得真实地图上的路线图、途径地点与路线摘要 🗺️
+    </div>
+
+    <div id="resultArea" class="hidden">
+      <div class="stats">
+        <div class="stat"><div class="v" id="statDist">-</div><div class="k">总距离 (km)</div></div>
+        <div class="stat"><div class="v" id="statTime">-</div><div class="k">预计耗时</div></div>
+        <div class="stat"><div class="v" id="statPace">-</div><div class="k">配速 (min/km)</div></div>
+        <div class="stat"><div class="v" id="statRoad">-</div><div class="k">主要路况</div></div>
+        <div class="stat" id="statKcalBox"><div class="v" id="statKcal">-</div><div class="k">预计消耗 (kcal)</div></div>
+      </div>
+
+      <div class="toggle-bar" id="routeBar"></div>
+
+      <div class="toggle-bar">
+        <button class="chip active" id="chipMap" onclick="switchView('map')">🗺️ 路线图（可缩放/拖动）</button>
+        <button class="chip" id="chipList" onclick="switchView('list')">📋 途径地点清单</button>
+        <button class="chip" id="chipNav" onclick="switchView('nav')">🧭 转向指引</button>
+        <button class="chip" id="chipCompare" onclick="switchView('compare')">📊 路线对比</button>
+      </div>
+
+      <div id="mapBox"><div id="realMap"></div></div>
+
+      <div id="listBox" class="hidden">
+        <ul class="waypoint-list" id="waypointList"></ul>
+      </div>
+
+      <div id="navBox" class="hidden">
+        <ul class="nav-list" id="navList"></ul>
+      </div>
+
+      <div id="compareBox" class="hidden">
+        <div id="compareList"></div>
+      </div>
+
+      <div class="note hidden" id="adjustNote"></div>
+
+      <div class="alternatives">
+        <button class="btn btn-ghost" onclick="planRoute()">🔄 重新生成</button>
+        <button class="btn btn-ghost" onclick="exportGPX()">⬇️ 导出 GPX</button>
+        <button class="btn btn-ghost" onclick="saveRoute()">⭐ 收藏路线</button>
+        <button class="btn btn-ghost" onclick="logRun()">✅ 今天跑了这条</button>
+        <button class="btn btn-ghost" onclick="makePoster()">📸 海报</button>
+      </div>
+
+      <div id="reviewBox" class="review-box hidden">
+        <div class="review-title">📝 点评这条路线（点星即保存，供下次选路线参考）</div>
+        <div id="reviewRows"></div>
+      </div>
+
+      <div id="savedBox" class="hidden">
+        <div id="runStatsBox" class="hidden">
+          <div class="saved-title">📔 跑步日志与成就</div>
+          <div id="runStats" class="run-stats"></div>
+          <div id="badgeWall" class="badge-wall"></div>
+        </div>
+        <div id="savedTitle" class="saved-title hidden">⭐ 我的收藏</div>
+        <div id="savedList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>地图数据 © OpenStreetMap ｜ 优先人行道、绿道、公园，避开机动车主干道</footer>
+
+<div id="posterModal" class="modal hidden" onclick="closePoster(event)">
+  <div class="modal-card">
+    <img id="posterImg" alt="路线分享海报">
+    <div class="modal-btns">
+      <a id="posterDownload" class="btn btn-primary" download="跑步路线海报.png">⬇️ 保存图片</a>
+      <button class="btn btn-ghost" onclick="document.getElementById('posterModal').classList.add('hidden')">关闭</button>
+    </div>
+    <div class="modal-tip">📱 手机上可长按图片保存，分享给跑友</div>
+  </div>
+</div>
+
+<script>
+/* ================= 状态 ================= */
+let goalMode = 'distance';
+let outMode = 'map';
+let currentRoute = null;
+let baseLatLng = null;        // 起点的真实坐标 [lat, lng]
+let baseName = '';              // 起点地点名称
+let map = null;                 // Leaflet 地图实例
+let routeLayer = null;          // 路线图层组
+let startMarker = null;          // 可拖动的起点标记
+let endMarker = null;            // 可拖动的终点标记
+let routeShape = 'loop';         // 仅保留环形路线（点选折返目标时自动改为往返路线）
+let endLatLng = null, endName = '';   // 折返目标（点选地图设置）
+let currentRoutes = [];          // 自动生成的多条备选路线
+let currentIdx = 0;              // 当前显示的路线序号
+
+/* ================= 分段控件 ================= */
+document.getElementById('goalSeg').addEventListener('click', e => {
+  const btn = e.target.closest('button'); if (!btn) return;
+  goalMode = btn.dataset.mode;
+  document.querySelectorAll('#goalSeg button').forEach(b => b.classList.toggle('active', b === btn));
+  refreshGoalVisibility();
+});
+function refreshGoalVisibility() {
+  document.getElementById('distanceRow').classList.toggle('hidden', goalMode !== 'distance');
+  document.getElementById('timeRow').classList.toggle('hidden', goalMode !== 'time');
+}
+document.getElementById('outSeg').addEventListener('click', e => {
+  const btn = e.target.closest('button'); if (!btn) return;
+  outMode = btn.dataset.mode;
+  document.querySelectorAll('#outSeg button').forEach(b => b.classList.toggle('active', b === btn));
+  switchView(outMode);
+});
+// 高德 Key 保存到本地，下次打开自动读取
+const amapKeyInput = document.getElementById('amapKeyInput');
+amapKeyInput.value = localStorage.getItem('amapKey') || '';
+amapKeyInput.addEventListener('change', () => localStorage.setItem('amapKey', amapKeyInput.value.trim()));
+
+/* ================= 地图初始化（底图自动降级：OSM → 高德） ================= */
+let tileLayerObj = null;
+let usingGcj02 = false;   // 是否使用高德底图（GCJ-02 火星坐标系）
+let tileErrCount = 0;
+
+function initMap() {
+  if (map) return;
+  map = L.map('realMap', { center: [39.9042, 116.4074], zoom: 12, zoomControl: true });
+  addOsmTiles();
+  routeLayer = L.layerGroup().addTo(map);
+  // 起点/终点标记（可拖动）+ 点击地图任意位置设置对应点（定位不准时的主要纠正手段）
+  startMarker = L.marker(map.getCenter(), { draggable: true, icon: startIcon(), zIndexOffset: 1000 });
+  startMarker.on('dragend', () => {
+    const ll = startMarker.getLatLng();
+    setStartFromMap([ll.lat, ll.lng]);
+  });
+  endMarker = L.marker(map.getCenter(), { draggable: true, icon: endIcon(), zIndexOffset: 900 });
+  endMarker.on('dragend', () => {
+    const ll = endMarker.getLatLng();
+    setEndFromMap([ll.lat, ll.lng]);
+  });
+  map.on('click', e => handleMapClick([e.latlng.lat, e.latlng.lng]));
+}
+
+function startIcon() {
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);
+      background:#38bdf8;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.6);
+      display:flex;align-items:center;justify-content:center">
+      <span style="transform:rotate(45deg);color:#082f49;font-weight:700;font-size:13px">起</span></div>`,
+    iconSize: [30, 30], iconAnchor: [15, 30]
+  });
+}
+
+function addOsmTiles() {
+  tileLayerObj = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(map);
+  tileLayerObj.on('tileerror', onTileError);
+}
+
+function onTileError() {
+  tileErrCount++;
+  // OSM 底图连续加载失败（网络受限等），自动切换高德底图保证真实地图可见
+  if (tileErrCount >= 3 && !usingGcj02) switchToAmapTiles();
+}
+
+function switchToAmapTiles() {
+  usingGcj02 = true;
+  if (tileLayerObj) map.removeLayer(tileLayerObj);
+  tileLayerObj = L.tileLayer(
+    'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
+    { maxZoom: 19, subdomains: '1234', attribution: '© 高德地图' }
+  ).addTo(map);
+  document.querySelector('footer').textContent = '地图数据 © 高德地图 ｜ 优先人行道、绿道、公园，避开机动车主干道';
+  if (currentRoute) drawOnMap(currentRoute); // 按 GCJ-02 偏移重绘路线，保证点位与底图对齐
+}
+
+/* -------- WGS84 → GCJ-02 坐标偏移修正（高德底图专用） -------- */
+const A_AXIS = 6378245.0, EE = 0.00669342162296594323;
+function outOfChina(lat, lng) { return lng < 72.004 || lng > 137.8347 || lat < 0.8293 || lat > 55.8271; }
+function transLat(x, y) {
+  let r = -100 + 2 * x + 3 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
+  r += (20 * Math.sin(6 * x * Math.PI) + 20 * Math.sin(2 * x * Math.PI)) * 2 / 3;
+  r += (20 * Math.sin(y * Math.PI) + 40 * Math.sin(y / 3 * Math.PI)) * 2 / 3;
+  r += (160 * Math.sin(y / 12 * Math.PI) + 320 * Math.sin(y * Math.PI / 300)) * 2 / 3;
+  return r;
+}
+function transLng(x, y) {
+  let r = 300 + x + 2 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x));
+  r += (20 * Math.sin(6 * x * Math.PI) + 20 * Math.sin(2 * x * Math.PI)) * 2 / 3;
+  r += (20 * Math.sin(x * Math.PI) + 40 * Math.sin(x / 3 * Math.PI)) * 2 / 3;
+  r += (150 * Math.sin(x / 12 * Math.PI) + 300 * Math.sin(x / 30 * Math.PI)) * 2 / 3;
+  return r;
+}
+function wgs84ToGcj02(lat, lng) {
+  if (outOfChina(lat, lng)) return [lat, lng];
+  let dLat = transLat(lng - 105, lat - 35);
+  let dLng = transLng(lng - 105, lat - 35);
+  const rad = lat / 180 * Math.PI;
+  let m = Math.sin(rad);
+  m = 1 - EE * m * m;
+  const sm = Math.sqrt(m);
+  dLat = dLat * 180 / (A_AXIS * (1 - EE) / (m * sm) * Math.PI);
+  dLng = dLng * 180 / (A_AXIS / sm * Math.cos(rad) * Math.PI);
+  return [lat + dLat, lng + dLng];
+}
+// 按当前底图类型返回可直接绘制的坐标
+function forMap(latlng) { return usingGcj02 ? wgs84ToGcj02(latlng[0], latlng[1]) : latlng; }
+
+// GCJ-02 → WGS84 反向修正（迭代法，用于高德接口返回坐标与地图点击拾取）
+function gcj02ToWgs84(lat, lng) {
+  let wLat = lat, wLng = lng;
+  for (let i = 0; i < 3; i++) {
+    const g = wgs84ToGcj02(wLat, wLng);
+    wLat += lat - g[0];
+    wLng += lng - g[1];
+  }
+  return [wLat, wLng];
+}
+
+function placeStartMarker(ll) {
+  if (!startMarker) return;
+  startMarker.setLatLng(ll);
+  if (!map.hasLayer(startMarker)) startMarker.addTo(map);
+}
+
+/* 点击地图 / 拖动起点标记：手动设置起点（定位不准时的主要纠正手段） */
+function setStartFromMap(mapLatLng) {
+  const raw = usingGcj02 ? gcj02ToWgs84(mapLatLng[0], mapLatLng[1]) : mapLatLng;
+  const anchor = baseLatLng = raw;
+  baseName = `地图选点（${raw[0].toFixed(5)}, ${raw[1].toFixed(5)}）`;
+  document.getElementById('locationInput').value = `${raw[0].toFixed(6)}, ${raw[1].toFixed(6)}`;
+  placeStartMarker(forMap(raw));
+  updateWeather(raw[0], raw[1]);
+  const hint = document.getElementById('locHint');
+  hint.textContent = '✅ 已在地图上设置起点，可点击「开始规划路线」。正在解析地点名称…';
+  hint.classList.add('ok');
+  reverseGeocode(raw[0], raw[1]).then(name => {
+    if (name && baseLatLng === anchor) {
+      baseName = name;
+      document.getElementById('locationInput').value = name;
+      hint.textContent = '✅ 起点：' + name + '（可点击「开始规划路线」）';
+    }
+  }).catch(() => {});
+}
+
+function endIcon() {
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);
+      background:#f59e0b;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.6);
+      display:flex;align-items:center;justify-content:center">
+      <span style="transform:rotate(45deg);color:#451a03;font-weight:700;font-size:13px">终</span></div>`,
+    iconSize: [30, 30], iconAnchor: [15, 30]
+  });
+}
+
+function placeEndMarker(ll) {
+  if (!endMarker) return;
+  endMarker.setLatLng(ll);
+  if (!map.hasLayer(endMarker)) endMarker.addTo(map);
+}
+
+/* 点击地图 / 拖动终点标记：手动设置终点 */
+function setEndFromMap(mapLatLng) {
+  const raw = usingGcj02 ? gcj02ToWgs84(mapLatLng[0], mapLatLng[1]) : mapLatLng;
+  const anchor = endLatLng = raw;
+  endName = `地图选点（${raw[0].toFixed(5)}, ${raw[1].toFixed(5)}）`;
+  document.getElementById('endInput').value = `${raw[0].toFixed(6)}, ${raw[1].toFixed(6)}`;
+  placeEndMarker(forMap(raw));
+  const hint = document.getElementById('locHint');
+  hint.textContent = '✅ 已设置折返目标，点击「开始规划路线」将生成往返路线。正在解析地点名称…';
+  hint.classList.add('ok');
+  reverseGeocode(raw[0], raw[1]).then(name => {
+    if (name && endLatLng === anchor) {
+      endName = name;
+      document.getElementById('endInput').value = name;
+      hint.textContent = '✅ 折返目标：' + name + '（点击「开始规划路线」生成往返路线）';
+    }
+  }).catch(() => {});
+}
+
+/* 点击地图：设置折返目标（规划时自动生成往返路线） */
+function handleMapClick(mapLatLng) {
+  setEndFromMap(mapLatLng);
+}
+
+/* ================= 地理编码（高德优先 + 多服务商兜底） ================= */
+const NOMINATIM = 'https://nominatim.openstreetmap.org';
+const amapKey = () => (localStorage.getItem('amapKey') || '').trim();
+
+async function fetchJson(url, ms = 8000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' }, signal: ctrl.signal });
+    if (!res.ok) throw new Error('http ' + res.status);
+    return await res.json();
+  } finally { clearTimeout(timer); }
+}
+
+async function reverseGeocode(lat, lng) {
+  const key = amapKey();
+  // 1) 高德 Web 服务 API（需免费 Key，国内最准最快）
+  if (key) {
+    try {
+      const g = wgs84ToGcj02(lat, lng);
+      const d = await fetchJson(`https://restapi.amap.com/v3/geocode/regeo?key=${key}&location=${g[1].toFixed(6)},${g[0].toFixed(6)}`);
+      if (d.status === '1' && d.regeocode && d.regeocode.formatted_address) return d.regeocode.formatted_address;
+    } catch (e) { /* 降级到下一个服务商 */ }
+  }
+  // 2) 高德网页接口（无需 Key，非官方兜底）
+  try {
+    const g = wgs84ToGcj02(lat, lng);
+    const d = await fetchJson(`https://www.amap.com/service/regeo?longitude=${g[1].toFixed(6)}&latitude=${g[0].toFixed(6)}`);
+    const addr = d?.data?.formatted_address || d?.data?.address || (typeof d?.data === 'string' ? d.data : null);
+    if (addr) return addr;
+  } catch (e) { /* 降级到下一个服务商 */ }
+  // 3) BigDataCloud（免费、无需 Key）
+  try {
+    const d = await fetchJson(
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=zh`);
+    const detail = d.localityInfo?.informative?.slice(0, 4).map(i => i.name).filter(Boolean);
+    if (detail && detail.length) return detail.join(' ');
+    const name = [d.locality, d.city, d.principalSubdivision].filter(Boolean).join(' ');
+    if (name) return name;
+  } catch (e) { /* 降级到下一个服务商 */ }
+  // 4) Nominatim
+  const d = await fetchJson(`${NOMINATIM}/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=zh-CN`);
+  return d.display_name || d.name || null;
+}
+
+async function forwardGeocode(text) {
+  const key = amapKey();
+  // 1) 高德 Web 服务 API（需免费 Key，国内最准）
+  if (key) {
+    try {
+      const d = await fetchJson(`https://restapi.amap.com/v3/geocode/geo?key=${key}&address=${encodeURIComponent(text)}`);
+      if (d.status === '1' && d.geocodes && d.geocodes.length && d.geocodes[0].location) {
+        const [lng, lat] = d.geocodes[0].location.split(',').map(Number);
+        const w = gcj02ToWgs84(lat, lng);
+        return { lat: w[0], lng: w[1], name: d.geocodes[0].formatted_address || text };
+      }
+    } catch (e) { /* 降级到下一个服务商 */ }
+  }
+  // 2) 高德网页 POI 搜索（无需 Key，非官方兜底）
+  try {
+    const d = await fetchJson(`https://www.amap.com/service/poiInfo?query_type=TQUERY&pagesize=1&keywords=${encodeURIComponent(text)}`);
+    const poi = d?.data?.poi_list && d.data.poi_list[0];
+    if (poi && poi.latitude && poi.longitude) {
+      const w = gcj02ToWgs84(+poi.latitude, +poi.longitude);
+      return { lat: w[0], lng: w[1], name: poi.name || text };
+    }
+  } catch (e) { /* 降级到下一个服务商 */ }
+  // 3) Nominatim（可搜索具体地标/门牌）
+  try {
+    const data = await fetchJson(
+      `${NOMINATIM}/search?format=jsonv2&limit=1&accept-language=zh-CN&q=${encodeURIComponent(text)}`);
+    if (data.length) {
+      return { lat: +data[0].lat, lng: +data[0].lon, name: data[0].display_name || text };
+    }
+  } catch (e) { /* 降级到下一个服务商 */ }
+  // 4) Open-Meteo（城市级）
+  const data = await fetchJson(
+    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(text)}&count=1&language=zh&format=json`);
+  if (data.results && data.results.length) {
+    const r0 = data.results[0];
+    return { lat: r0.latitude, lng: r0.longitude, name: [r0.name, r0.admin1, r0.country].filter(Boolean).join('，') };
+  }
+  return null;
+}
+
+/* 智能正向地理编码：完整查不到时，逐级去掉前缀（国家/省）缩短重试 */
+async function forwardGeocodeSmart(text) {
+  let geo = await forwardGeocode(text);
+  if (geo) return geo;
+  const parts = text.split(/[\s,，]+/).filter(Boolean);
+  for (let i = 1; i < parts.length && i < 4; i++) {
+    const sub = parts.slice(i).join(' ');
+    geo = await forwardGeocode(sub);
+    if (geo) return geo;
+  }
+  return null;
+}
+
+/* 多候选正向地理编码：返回最多 limit 个结果供用户选择 */
+async function forwardGeocodeMulti(text, limit = 5) {
+  const key = amapKey();
+  // 1) 高德 POI 文本搜索（需 Key，国内结果最准）
+  if (key) {
+    try {
+      const d = await fetchJson(
+        `https://restapi.amap.com/v3/place/text?key=${key}&keywords=${encodeURIComponent(text)}&offset=${limit}&page=1&extensions=base`,
+        8000);
+      if (d.status === '1' && Array.isArray(d.pois) && d.pois.length) {
+        return d.pois.map(p => {
+          const [lng, lat] = p.location.split(',').map(Number);
+          const w = gcj02ToWgs84(lat, lng);
+          const addr = typeof p.address === 'string' && p.address ? ' · ' + p.address : '';
+          return { lat: w[0], lng: w[1], name: p.name + addr };
+        });
+      }
+    } catch (e) { /* 降级 */ }
+  }
+  // 2) 高德网页 POI 接口（无需 Key）
+  try {
+    const d = await fetchJson(
+      `https://www.amap.com/service/poiInfo?query_type=TQUERY&pagesize=${limit}&keywords=${encodeURIComponent(text)}`,
+      8000);
+    const list = d && d.data && d.data.poi_list;
+    if (Array.isArray(list) && list.length) {
+      const out = list.filter(p => p.latitude && p.longitude).map(p => {
+        const w = gcj02ToWgs84(+p.latitude, +p.longitude);
+        return { lat: w[0], lng: w[1], name: p.name };
+      });
+      if (out.length) return out;
+    }
+  } catch (e) { /* 降级 */ }
+  // 3) Nominatim 多结果
+  try {
+    const data = await fetchJson(`${NOMINATIM}/search?format=jsonv2&limit=${limit}&accept-language=zh-CN&q=${encodeURIComponent(text)}`, 8000);
+    if (Array.isArray(data) && data.length) {
+      return data.map(x => ({ lat: +x.lat, lng: +x.lon, name: x.display_name }));
+    }
+  } catch (e) { /* 降级 */ }
+  // 4) 兼容旧链路：逐级缩短重试，取第一个结果
+  try {
+    const g = await forwardGeocodeSmart(text);
+    return g ? [g] : [];
+  } catch (e) { return []; }
+}
+
+/* 候选地点列表面板（起点 / 折返目标通用） */
+function showCandidates(geos, which) {
+  const panel = document.getElementById('candidatePanel');
+  panel.innerHTML = geos.slice(0, 5).map((g, i) =>
+    `<button class="cand-item" data-i="${i}">📍 ${g.name}</button>`).join('');
+  panel.classList.remove('hidden');
+  panel.onclick = e => {
+    const btn = e.target.closest('.cand-item'); if (!btn) return;
+    const g = geos[+btn.dataset.i];
+    panel.classList.add('hidden');
+    if (which === 'start') {
+      applyGeo(g);
+      planRoute(); // 选定后自动继续规划
+    } else {
+      applyEndGeo(g);
+      planRoute();
+    }
+  };
+}
+
+function applyGeo(geo) {
+  baseLatLng = [geo.lat, geo.lng];
+  baseName = geo.name;
+  document.getElementById('locationInput').value = geo.name;
+  const hint = document.getElementById('locHint');
+  hint.textContent = '✅ 已定位：' + geo.name;
+  hint.classList.add('ok');
+  if (map) { map.setView(forMap(baseLatLng), 15); placeStartMarker(forMap(baseLatLng)); }
+  updateWeather(geo.lat, geo.lng);
+}
+
+function applyEndGeo(g) {
+  endLatLng = [g.lat, g.lng];
+  endName = g.name;
+  document.getElementById('endInput').value = g.name;
+  if (map) { placeEndMarker(forMap(endLatLng)); map.panTo(forMap(endLatLng)); }
+}
+
+/* ================= GPS 定位：坐标 → 地点名称 ================= */
+function useGPS() {
+  const btn = document.getElementById('gpsBtn');
+  const hint = document.getElementById('locHint');
+  if (!navigator.geolocation) {
+    hint.textContent = '❌ 当前浏览器不支持定位。可拖动地图后点击地图任意位置设置起点，或输入地点名称。';
+    return;
+  }
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 正在定位…';
+  navigator.geolocation.getCurrentPosition(async pos => {
+    const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+    initMap();
+    // 先把起点立刻放到地图上（地点名称解析失败也不影响规划）
+    baseLatLng = [lat, lng];
+    baseName = `GPS: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    map.setView(forMap([lat, lng]), 15);
+    placeStartMarker(forMap([lat, lng]));
+    hint.textContent = `已获取坐标 ${lat.toFixed(5)}, ${lng.toFixed(5)}（精度约 ${Math.round(accuracy)} 米），正在解析地点名称…`;
+    hint.classList.remove('ok');
+    try {
+      const name = await reverseGeocode(lat, lng);
+      if (name) baseName = name;
+    } catch (e) { /* 名称解析失败不影响规划，直接使用坐标 */ }
+    document.getElementById('locationInput').value = baseName;
+    hint.textContent = '✅ 已定位：' + baseName;
+    hint.classList.add('ok');
+    if (accuracy > 1500) {
+      hint.textContent += `\n⚠️ 定位精度较低（约 ${(accuracy / 1000).toFixed(1)} km），若位置有偏差，可拖动地图后点击地图任意位置重新设置起点。`;
+    }
+    btn.disabled = false;
+    btn.textContent = '📍 重新获取定位';
+    updateWeather(lat, lng);
+    planRoute(); // 定位成功后自动规划路线，无需再点「开始规划」
+  }, () => {
+    hint.textContent = '❌ 定位失败（请检查浏览器定位权限）。也可以拖动地图，点击地图任意位置手动设置起点。';
+    btn.disabled = false;
+    btn.textContent = '📍 获取我的定位（自动规划）';
+  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+}
+
+/* ================= 解析起点：输入框内容 → 真实坐标 ================= */
+async function resolveStart() {
+  const input = document.getElementById('locationInput').value.trim();
+  const hint = document.getElementById('locHint');
+
+  if (!input) {
+    // 未输入时使用默认位置
+    baseLatLng = [39.9998, 116.3918];
+    baseName = '北京·奥林匹克森林公园南门（默认位置）';
+    hint.textContent = '未输入位置，已使用默认位置：' + baseName;
+    return true;
+  }
+
+  // 输入内容与上次定位解析出的地点一致时，直接复用已解析坐标，避免重新搜索失败
+  if (baseLatLng && input === baseName) {
+    hint.textContent = '✅ 已定位：' + baseName;
+    hint.classList.add('ok');
+    return true;
+  }
+
+  // 形如 "GPS: lat, lng" 或 "lat, lng" 的坐标输入
+  const m = input.match(/(-?\d+\.?\d*)\s*[,，\s]\s*(-?\d+\.?\d*)/);
+  if (m) {
+    const lat = parseFloat(m[1]), lng = parseFloat(m[2]);
+    if (Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+      baseLatLng = [lat, lng];
+      try {
+        const name = await reverseGeocode(lat, lng);
+        baseName = name || input;
+        if (name) document.getElementById('locationInput').value = name;
+        hint.textContent = '✅ 已定位：' + baseName;
+        hint.classList.add('ok');
+      } catch {
+        baseName = input;
+        hint.textContent = '✅ 已按坐标定位（地点名称解析失败）。';
+      }
+      return true;
+    }
+  }
+
+  // 地点名称 / 地址 → 正向地理编码（多个候选时列出供用户选择）
+  hint.textContent = `正在搜索「${input}」的位置…`;
+  hint.classList.remove('ok');
+  document.getElementById('candidatePanel').classList.add('hidden');
+  const geos = await forwardGeocodeMulti(input);
+  if (!geos.length) {
+    hint.textContent = '❌ 未能找到该地点。建议：① 点击「获取我的定位」；② 拖动地图到正确位置后，点击地图任意处设为起点；③ 输入更具体的名称（如“成都市天府广场”）。';
+    return false;
+  }
+  if (geos.length === 1) { applyGeo(geos[0]); return true; }
+  hint.textContent = `搜到 ${geos.length} 个候选地点，请在下方选择：`;
+  showCandidates(geos, 'start');
+  return false;
+}
+
+/* ================= 工具 ================= */
+const rnd = (a, b) => a + Math.random() * (b - a);
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+function fmtTime(min) {
+  const h = Math.floor(min / 60), m = Math.round(min % 60);
+  return h > 0 ? `${h}h ${m}m` : `${m} 分钟`;
+}
+// 距离(km) → 经纬度偏移（纬度 1° ≈ 111km；经度按纬度余弦修正）
+function kmToDeg(kmLat, lat) {
+  return { dLat: kmLat / 111, dLng: kmLat / (111 * Math.cos(lat * Math.PI / 180)) };
+}
+
+/* ================= 地点名称池 ================= */
+const namePool = {
+  park:  ['翠湖公园', '滨河绿道', '梧桐林荫道', '市民公园东门', '湿地公园', '樱花步道', '松林广场', '芳草绿地', '晨光公园', '叠水花园'],
+  river: ['亲水平台', '河滨步道', '望江亭', '芦苇湿地段', '滨江绿道', '码头旧址', '柳堤段', '观景栈桥', '水闸公园', '夕照湾'],
+  loop:  ['环湖绿道', '城市公园北门', '林荫跑道', '体育场外围', '街心花园', '绿廊天桥下', '文化广场', '清风亭', '绿道驿站', '起点环岛']
+};
+const roadTypes = { park: '绿道 / 人行道', river: '滨水步道 / 绿道', loop: '公园环线 / 人行道' };
+
+/* ================= 真实路网路径规划（高德步行 → OSRM → 模拟兜底） ================= */
+let routingEnginesDead = false; // 路网服务均不可达时快速失败，避免长时间等待
+async function routeBetween(oLat, oLng, dLat, dLng) {
+  if (routingEnginesDead) return null;
+  const key = amapKey();
+  let amapFailed = !key;
+  // 1) 高德步行路径规划（真实人行道路网，需免费 Key）
+  if (key) {
+    try {
+      const og = wgs84ToGcj02(oLat, oLng), dg = wgs84ToGcj02(dLat, dLng);
+      const d = await fetchJson(
+        `https://restapi.amap.com/v3/direction/walking?key=${key}` +
+        `&origin=${og[1].toFixed(6)},${og[0].toFixed(6)}&destination=${dg[1].toFixed(6)},${dg[0].toFixed(6)}`,
+        12000);
+      if (d.status === '1' && d.route && d.route.paths && d.route.paths.length) {
+        const pts = [];
+        const navSteps = [];
+        let cumM = 0;
+        d.route.paths[0].steps.forEach(s => {
+          s.polyline.split(';').forEach(p => {
+            const [lng, lat] = p.split(',').map(Number);
+            const w = gcj02ToWgs84(lat, lng);
+            pts.push([w[0], w[1]]);
+          });
+          cumM += +s.distance || 0;
+          navSteps.push({
+            instruction: s.instruction || '继续前行',
+            road: s.road || '',
+            action: s.action || '',
+            distance: +s.distance || 0,
+            cumKm: cumM / 1000
+          });
+        });
+        return { points: pts, engine: 'amap', distance: +d.route.paths[0].distance, navSteps };
+      }
+      amapFailed = true;
+    } catch (e) { amapFailed = true; /* 降级 */ }
+  }
+  // 2) OSRM 公共路网（无需 Key，沿真实道路，境外服务可能较慢）
+  let osrmFailed = false;
+  try {
+    const d = await fetchJson(
+      `https://router.project-osrm.org/route/v1/driving/${oLng.toFixed(6)},${oLat.toFixed(6)};${dLng.toFixed(6)},${dLat.toFixed(6)}?overview=full&geometries=geojson`,
+      8000);
+    if (d.routes && d.routes.length) {
+      const pts = d.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+      return { points: pts, engine: 'osrm', distance: d.routes[0].distance };
+    }
+    osrmFailed = true;
+  } catch (e) { osrmFailed = true; }
+  // 3) FOSSGIS 步行路网（OSM 公共实例，人行道/步行道路网）
+  try {
+    const d = await fetchJson(
+      `https://routing.openstreetmap.de/routed-foot/route/v1/driving/${oLng.toFixed(6)},${oLat.toFixed(6)};${dLng.toFixed(6)},${dLat.toFixed(6)}?overview=full&geometries=geojson`,
+      8000);
+    if (d.routes && d.routes.length) {
+      const pts = d.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+      return { points: pts, engine: 'osrm', distance: d.routes[0].distance };
+    }
+  } catch (e) {
+    // 所有引擎都不可用 → 后续调用快速失败，不再等待超时
+    if (amapFailed && osrmFailed) routingEnginesDead = true;
+  }
+  return null;
+}
+
+/* ================= 智能选向：搜索起点附近的公园/广场（环线目的地优先朝这些地方，照明好、适合夜跑） ================= */
+async function fetchNearbyParks(lat, lng, radius) {
+  const key = amapKey();
+  if (!key) return [];
+  try {
+    const g = wgs84ToGcj02(lat, lng);
+    const d = await fetchJson(
+      `https://restapi.amap.com/v3/place/around?key=${key}` +
+      `&location=${g[1].toFixed(6)},${g[0].toFixed(6)}&types=110000|110101|110102|110105&radius=${radius}&offset=10&page=1&sortrule=distance`,
+      8000);
+    if (d.status === '1' && Array.isArray(d.pois)) {
+      return d.pois.map(p => {
+        const [plng, plat] = p.location.split(',').map(Number);
+        const w = gcj02ToWgs84(plat, plng);
+        return { lat: w[0], lng: w[1], name: p.name };
+      });
+    }
+  } catch (e) { /* POI 搜索失败不影响主流程，回退随机方向 */ }
+  return [];
+}
+
+/* 两点间球面距离（km） */
+function haversine(a, b) {
+  const R = 6371, toRad = d => d * Math.PI / 180;
+  const dLat = toRad(b[0] - a[0]), dLng = toRad(b[1] - a[1]);
+  const h = Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(a[0])) * Math.cos(toRad(b[0])) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+/* 沿实际路径按等距布设途径点（约每公里一个） */
+function sampleAlongPath(pts, startName, endName, shape) {
+  const cum = [0];
+  for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + haversine(pts[i - 1], pts[i]));
+  const total = cum[cum.length - 1];
+  // 每约 200 米一个标记点，上限 80 个（超长路线自动加大间隔）
+  const interval = Math.max(0.2, total / 80);
+  const n = Math.max(2, Math.min(80, Math.round(total / interval)));
+  const waypoints = [];
+  for (let k = 0; k <= n; k++) {
+    const target = total * k / n;
+    let i = 1;
+    while (i < cum.length - 1 && cum[i] < target) i++;
+    const seg = (cum[i] - cum[i - 1]) || 1e-9;
+    const t = Math.max(0, Math.min(1, (target - cum[i - 1]) / seg));
+    const lat = pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * t;
+    const lng = pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * t;
+    let name;
+    if (k === 0) name = startName;
+    else if (k === n) name = endName;
+    else if (shape === 'return' && k === Math.round(n / 2)) name = `折返点`;
+    else name = `途经点 ${k}`;
+    waypoints.push({
+      name,
+      type: k === 0 ? 'start' : (k === n ? 'end' : 'wp'),
+      km: target,
+      road: '实际道路',
+      latlng: [lat, lng]
+    });
+  }
+  return waypoints;
+}
+
+/* 无路网可用时的模拟环线兜底 */
+function simulateLoop(sLat, sLng, targetKm, location) {
+  const segCount = Math.max(3, Math.min(10, Math.round(targetKm / rnd(0.7, 1.0))));
+  const pool = [...namePool.park].sort(() => Math.random() - 0.5);
+  const segLen = targetKm / segCount;
+  const { dLat, dLng } = kmToDeg(segLen, sLat);
+  const latlngs = [[sLat, sLng]];
+  let angle = rnd(-Math.PI, Math.PI);
+  for (let i = 1; i < segCount; i++) {
+    angle += rnd(-1.1, 1.1);
+    const prev = latlngs[latlngs.length - 1];
+    latlngs.push([
+      prev[0] + Math.cos(angle) * dLat * rnd(0.85, 1.15),
+      prev[1] + Math.sin(angle) * dLng * rnd(0.85, 1.15)
+    ]);
+  }
+  latlngs.push([sLat, sLng]); // 精确回到起点
+  let cum = 0;
+  const waypoints = [{ name: location, km: 0, type: 'start', road: '出发点', latlng: latlngs[0] }];
+  for (let i = 1; i < latlngs.length; i++) {
+    cum += segLen * rnd(0.9, 1.1);
+    const isEnd = i === latlngs.length - 1;
+    waypoints.push({
+      name: isEnd ? `${location}（返回）` : pool[(i - 1) % pool.length],
+      km: cum, type: isEnd ? 'end' : 'wp',
+      road: '模拟路径', latlng: latlngs[i]
+    });
+  }
+  return { waypoints, totalKm: waypoints[waypoints.length - 1].km, fullPath: latlngs };
+}
+
+/* 解析终点：地图选点复用 / 坐标输入 / 地名搜索 */
+async function resolveEnd() {
+  const input = document.getElementById('endInput').value.trim();
+  const hint = document.getElementById('locHint');
+  if (endLatLng && (input === endName || input === `${endLatLng[0].toFixed(6)}, ${endLatLng[1].toFixed(6)}`)) {
+    return true;
+  }
+  if (!input && !endLatLng) {
+    hint.textContent = '❌ 请先设置折返目标：在地图上点击目标位置，或输入地点名称。';
+    return false;
+  }
+  if (input) {
+    const m = input.match(/(-?\d+\.?\d*)\s*[,，\s]\s*(-?\d+\.?\d*)/);
+    if (m && Math.abs(+m[1]) <= 90 && Math.abs(+m[2]) <= 180) {
+      endLatLng = [+m[1], +m[2]];
+      endName = input;
+      placeEndMarker(forMap(endLatLng));
+      try {
+        const name = await reverseGeocode(endLatLng[0], endLatLng[1]);
+        if (name) { endName = name; document.getElementById('endInput').value = name; }
+      } catch (e) { /* 名称解析失败不影响规划 */ }
+      return true;
+    }
+    hint.textContent = `正在搜索折返目标「${input}」的位置…`;
+    document.getElementById('candidatePanel').classList.add('hidden');
+    const geos = await forwardGeocodeMulti(input);
+    if (!geos.length) {
+      hint.textContent = '❌ 未能找到该地点。建议直接在地图上点击设置折返目标。';
+      return false;
+    }
+    if (geos.length === 1) { applyEndGeo(geos[0]); return true; }
+    hint.textContent = `搜到 ${geos.length} 个候选地点，请在下方选择：`;
+    showCandidates(geos, 'end');
+    return false;
+  }
+  return true;
+}
+
+/* 主干道优先评分：无名路段/巷道占比越高，越可能穿行小区内部（0 全程主干道，1 全程巷道） */
+function routePenalty(navSteps) {
+  if (!navSteps || !navSteps.length) return 0;
+  let pen = 0, total = 0;
+  navSteps.forEach(s => {
+    const dist = s.distance || 0;
+    total += dist;
+    const road = s.road || '';
+    if (!road) pen += dist * 0.6;                                       // 无名路段：多为小区内部或无名巷道（广场边缘除外）
+    else if (/巷|弄|径|里|坊|小区|院内|宿舍|家属院|公寓|新村|组团|内街|后街/.test(road)) pen += dist;  // 明确的巷道/小区内部道路，全额计罚
+  });
+  return total ? pen / total : 0;
+}
+
+/* ================= 核心：规划路线（环形 3 条 / 点选折返目标 → 往返 1 条） ================= */
+async function planRoute() {
+  const planBtn = document.getElementById('planBtn');
+  planBtn.disabled = true;
+  planBtn.innerHTML = '<span class="spinner"></span> 正在生成路线…';
+  initMap();
+  routingEnginesDead = false; // 每次规划重新尝试路网（可能刚填入了高德 Key）
+  document.getElementById('candidatePanel').classList.add('hidden'); // 重新规划时收起上次的候选列表
+
+  const hint = document.getElementById('locHint');
+  const ok = await resolveStart();
+  if (!ok) { planBtn.disabled = false; planBtn.textContent = '✨ 开始规划路线'; return; }
+
+  // 若输入框填写了折返目标但未在地图上点选，先尝试搜索定位
+  let hasTarget = !!endLatLng;
+  if (!hasTarget && document.getElementById('endInput').value.trim()) {
+    hasTarget = await resolveEnd();
+    if (!hasTarget) { planBtn.disabled = false; planBtn.textContent = '✨ 开始规划路线'; return; }
+  }
+
+  let targetKm, pace;
+  if (goalMode === 'distance') {
+    targetKm = parseFloat(document.getElementById('distanceInput').value) || 5;
+    pace = 6;
+  } else {
+    const min = parseFloat(document.getElementById('timeInput').value) || 30;
+    pace = parseFloat(document.getElementById('paceInput').value) || 6;
+    targetKm = min / pace;
+  }
+  const safe = document.getElementById('safeCheck').checked;
+  const [sLat, sLng] = baseLatLng;
+  const location = baseName || '当前位置';
+  const endLabel = `${location}（返回）`;
+  let simNote = null;
+
+  const collected = []; // {points, engine} 或 {sim}
+
+  if (hasTarget) {
+    // 往返：起点 → 折返目标 → 起点（生成 1 条路线）
+    hint.textContent = '正在沿真实路网规划往返路线（起点 → 折返点 → 起点）…';
+    const r = await routeBetween(sLat, sLng, endLatLng[0], endLatLng[1]);
+    let path;
+    if (r) {
+      path = r.points.concat(r.points.slice(0, -1).reverse());
+    } else {
+      path = [[sLat, sLng], [endLatLng[0], endLatLng[1]], [sLat, sLng]];
+      simNote = '⚠️ 未能接入真实路网，当前为直线往返路径（可能穿过建筑物）。填入高德 Key（Web服务）后可沿真实道路规划。';
+    }
+    // 强制闭环回起点，避免起终点分离
+    const last = path[path.length - 1];
+    if (Math.abs(last[0] - sLat) > 1e-6 || Math.abs(last[1] - sLng) > 1e-6) path.push([sLat, sLng]);
+    collected.push({ points: path, engine: r ? r.engine : null, navSteps: r ? r.navSteps : null, viaName: endName || null });
+  } else {
+    // 环形：智能选向 —— 有高德 Key 时优先朝附近公园/广场（照明好）；否则随机方向；连续失败快速退出
+    const half = targetKm / 2;
+    let poiDests = [];
+    if (amapKey()) {
+      hint.textContent = '正在搜索附近公园与广场，智能选择路线方向…';
+      const radius = Math.min(5000, Math.max(1000, Math.round(targetKm * 500 * 1.6)));
+      const parks = await fetchNearbyParks(sLat, sLng, radius);
+      // 优选离起点约为目标一半距离的公园（环线总长≈目标距离）
+      poiDests = parks
+        .map(p => ({ ...p, d: haversine([sLat, sLng], [p.lat, p.lng]) }))
+        .filter(p => p.d > half * 0.3 && p.d < Math.max(half * 1.6, 1.2))
+        .sort((a, b) => Math.abs(a.d - half) - Math.abs(b.d - half))
+        .slice(0, 5);
+    }
+    let attempts = 0, missStreak = 0, poiIdx = 0;
+    const wantCount = amapKey() ? 6 : 3; // 有 Key 时广撒网多收候选，随后按巷道占比优选前 3（大幅降低穿行小区的概率）
+    while (collected.length < wantCount && attempts < 14) {
+      attempts++;
+      let dest, viaName = null;
+      if (poiIdx < poiDests.length) {
+        const p = poiDests[poiIdx++];
+        dest = [p.lat, p.lng]; viaName = p.name;
+      } else {
+        const bearing = rnd(0, 2 * Math.PI);
+        dest = [
+          sLat + Math.cos(bearing) * half / 111,
+          sLng + Math.sin(bearing) * half / (111 * Math.cos(sLat * Math.PI / 180))
+        ];
+      }
+      hint.textContent = `正在沿真实路网生成环形路线${viaName ? '（途经 ' + viaName + '）' : ''}（已得到 ${collected.length} 条）…`;
+      const r = await routeBetween(sLat, sLng, dest[0], dest[1]);
+      if (!r || r.distance < 200) {
+        missStreak++;
+        if (missStreak >= 2) break; // 路网不可达，快速退出转模拟路线
+        continue;
+      }
+      missStreak = 0;
+      const back = await routeBetween(dest[0], dest[1], sLat, sLng);
+      const path = back ? r.points.concat(back.points.slice(1))
+                        : r.points.concat(r.points.slice(0, -1).reverse());
+      // 转向指引：去程步骤 + （回程步骤或原路返回提示）
+      let navSteps = r.navSteps || null;
+      if (navSteps) {
+        if (back && back.navSteps) navSteps = navSteps.concat(back.navSteps);
+        else navSteps = navSteps.concat([{ instruction: '沿去程原路折返回起点', road: '', action: '', distance: 0, cumKm: 0 }]);
+      }
+      // 强制闭环：路线终点精确回到起点，避免起终点分离（路网会把坐标吸附到道路上）
+      const last = path[path.length - 1];
+      if (Math.abs(last[0] - sLat) > 1e-6 || Math.abs(last[1] - sLng) > 1e-6) {
+        path.push([sLat, sLng]);
+      }
+      collected.push({ points: path, engine: r.engine, navSteps, viaName });
+    }
+    // 主干道优先：按巷道占比评分排序（最干净的路线排最前），超过 3 条时只保留最优的 3 条，降低穿行小区内部的概率
+    if (amapKey() && collected.length > 1) {
+      collected.forEach(c => c.penalty = routePenalty(c.navSteps));
+      collected.sort((a, b) => a.penalty - b.penalty);
+      collected.length = Math.min(collected.length, 3);
+    }
+    // 路网不可用：生成 3 条模拟路线兕底，保证总是有结果
+    if (collected.length === 0) {
+      hint.textContent = '真实路网暂不可用，正在生成模拟路线…';
+      for (let i = 0; i < 3; i++) {
+        collected.push({ sim: simulateLoop(sLat, sLng, targetKm, location) });
+      }
+            simNote = '⚠️ 未能接入真实路网，以下为模拟路线（直线连接，可能穿过建筑物/广场，不代表真实可跑道路）。填入高德 Key（Web服务，免费申请）后将沿真实人行道路规划，自动避开建筑物与偏僻区域。';
+    } else if (collected.length < 3) {
+      hint.textContent = `真实路网共生成 ${collected.length} 条路线。`;
+    }
+  }
+
+  // 组装路线对象（每条路线按约 200 米间隔布设标记点）
+  const safeNoKey = safe && !amapKey();
+  currentRoutes = collected.map(c => {
+    if (c.sim) {
+      return {
+        waypoints: c.sim.waypoints, fullPath: c.sim.fullPath, totalKm: c.sim.totalKm,
+        totalMin: c.sim.totalKm * pace, pace, safe, road: '模拟路径', note: simNote,
+        navSteps: null, viaName: null, safeTag: false
+      };
+    }
+    const waypoints = sampleAlongPath(c.points, location, endLabel, hasTarget ? 'return' : 'loop');
+    const totalKm = waypoints[waypoints.length - 1].km;
+    let note = simNote;
+    if (!hasTarget && Math.abs(totalKm - targetKm) > targetKm * 0.05) {
+      note = note || `⚠️ 实际道路距离与目标有差异：按路网规划为 ${totalKm.toFixed(2)} 公里（目标 ${targetKm.toFixed(2)} 公里）。`;
+    }
+    // 夜跑安全模式：已途经公园/广场视为照明良好；无高德 Key 时无法判断，提醒用户
+    const safeTag = safe && !!c.viaName;
+    if (safeNoKey) {
+      note = (note || '') + '\n⚠️ 已开启夜跑安全模式，但需填入高德 Key 才能自动优先公园/广场等照明良好的地点。';
+    }
+    const pen = c.penalty ?? routePenalty(c.navSteps);
+    if (c.engine === 'amap' && pen > 0.35) {
+      note = (note || '') + '\n⚠️ 此路线无名巷道占比偏高，可能经过小区内部道路，建议切换其他路线。';
+    }
+    return {
+      waypoints, fullPath: c.points, totalKm,
+      totalMin: totalKm * pace, pace, safe,
+      road: c.engine === 'amap' ? (pen <= 0.18 ? '真实步行路网 · 主干道优先' : '真实步行路网') : (c.engine ? '真实道路网' : '模拟路径'), note,
+      navSteps: c.navSteps || null, viaName: c.viaName || null, safeTag
+    };
+  });
+
+  renderResult();
+  addSupplyPoints(); // 后台标注沿途补给点（有高德 Key 时生效，不阻塞规划）
+  planBtn.disabled = false;
+  planBtn.textContent = '✨ 重新生成路线';
+}
+
+/* ================= 渲染（支持路线 1/2/3 切换） ================= */
+function renderResult() {
+  document.getElementById('emptyState').classList.add('hidden');
+  document.getElementById('resultArea').classList.remove('hidden');
+
+  // 生成 路线1 / 路线2 / 路线3 切换按钮（显示各自总距离）
+  const bar = document.getElementById('routeBar');
+  bar.innerHTML = '';
+  currentRoutes.forEach((r, i) => {
+    const b = document.createElement('button');
+    b.className = 'chip';
+    const via = r.viaName ? '·' + (r.viaName.length > 8 ? r.viaName.slice(0, 8) + '…' : r.viaName) : '';
+    b.textContent = `🏃 路线${i + 1}${via}（${r.totalKm.toFixed(2)} km）`;
+    b.onclick = () => selectRoute(i);
+    bar.appendChild(b);
+  });
+  selectRoute(0);
+}
+
+function selectRoute(i) {
+  currentIdx = i;
+  currentRoute = currentRoutes[i];
+  document.querySelectorAll('#routeBar .chip').forEach((c, j) => c.classList.toggle('active', j === i));
+
+  const r = currentRoute;
+  document.getElementById('statDist').textContent = r.totalKm.toFixed(2);
+  document.getElementById('statTime').textContent = fmtTime(r.totalMin);
+  document.getElementById('statPace').textContent = r.pace.toFixed(1);
+  document.getElementById('statRoad').textContent = r.road.split(' / ')[0];
+  const kcal = calcKcal(r);
+  document.getElementById('statKcal').textContent = kcal;
+  document.getElementById('statKcalBox').title = `≈ ${(kcal / 200).toFixed(1)} 碗米饭（1 碗米饭 ≈ 200 kcal）`;
+
+  refreshNote(r);
+  renderReview();
+
+  drawOnMap(r);
+  drawList(r);
+  renderNav(r);
+  switchView(outMode);
+  if (outMode === 'compare') renderCompare();
+}
+
+function switchView(mode) {
+  outMode = mode;
+  ['Map', 'List', 'Nav', 'Compare'].forEach(m => {
+    const chip = document.getElementById('chip' + m);
+    if (chip) chip.classList.toggle('active', m.toLowerCase() === mode);
+  });
+  document.getElementById('mapBox').classList.toggle('hidden', mode !== 'map');
+  document.getElementById('listBox').classList.toggle('hidden', mode !== 'list');
+  document.getElementById('navBox').classList.toggle('hidden', mode !== 'nav');
+  document.getElementById('compareBox').classList.toggle('hidden', mode !== 'compare');
+  // 从隐藏切回地图时重算尺寸，并按路线长短自适应最佳视野
+  if (mode === 'map' && map) setTimeout(() => { map.invalidateSize(); fitRoute(); }, 80);
+  if (mode === 'compare') renderCompare();
+}
+
+/* ================= 转向指引视图（需高德 Key 接入路网后才有逐段数据） ================= */
+function actionIcon(action) {
+  if (!action) return '⬆️';
+  if (action.includes('左')) return '⬅️';
+  if (action.includes('右')) return '➡️';
+  if (action.includes('后')) return '↩️';
+  if (action.includes('到达')) return '🏁';
+  return '⬆️';
+}
+function renderNav(r) {
+  const ul = document.getElementById('navList');
+  if (!r) return;
+  if (!r.navSteps || !r.navSteps.length) {
+    ul.innerHTML = `<li><div class="nav-icon">🧭</div><div style="flex:1;color:var(--text-dim)">
+      转向指引需要接入高德步行路网（填入高德 Key，平台选「Web服务」）后重新规划。<br>
+      接入后将显示逐段指引，例如：「左转进入 ×× 路」「直行 320 米后右转」。</div></li>`;
+    return;
+  }
+  ul.innerHTML = r.navSteps.map(s => `
+    <li>
+      <div class="nav-icon">${actionIcon(s.action)}</div>
+      <div style="flex:1">
+        <div>${s.instruction}</div>
+        ${s.road ? `<div class="nav-road">📍 ${s.road}</div>` : ''}
+        <div class="nav-dist">本段 ${s.distance} 米${s.cumKm ? ' · 累计 ' + s.cumKm.toFixed(2) + ' km' : ''}</div>
+      </div>
+    </li>`).join('');
+}
+
+/* ================= 路线对比视图 ================= */
+function renderCompare() {
+  const box = document.getElementById('compareList');
+  if (!currentRoutes.length) { box.innerHTML = ''; return; }
+  box.innerHTML = currentRoutes.map((r, i) => {
+    const kcal = calcKcal(r);
+    let rvTxt = '';
+    const rv = getReviews()[reviewKey(r)];
+    if (rv) {
+      const vals = ['light', 'road', 'crowd'].map(d => rv[d] || 0).filter(v => v);
+      if (vals.length) rvTxt = ` ｜ 📝 ${(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1)}★`;
+    }
+    return `
+    <div class="compare-card ${i === currentIdx ? 'active' : ''}" onclick="selectRoute(${i})">
+      <div class="compare-title">🏃 路线${i + 1}${r.viaName ? ' · 途经 ' + r.viaName : ''}${r.safeTag ? ' · 🌙 夜跑优选' : ''}</div>
+      <div class="compare-meta">
+        总距离 <b style="color:var(--primary)">${r.totalKm.toFixed(2)} km</b> ｜ 预计耗时 ${fmtTime(r.totalMin)} ｜ 路况：${r.road}<br>
+        预计消耗 ${kcal} kcal ≈ ${(kcal / 200).toFixed(1)} 碗米饭${rvTxt}${r.note ? '<br>' + r.note.replace(/\n/g, '<br>') : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* 按路线总长度自动调整到最佳显示视野（短路线不过度放大，长路线完整可见） */
+function fitRoute() {
+  if (!map || !currentRoute) return;
+  const src = currentRoute.fullPath || currentRoute.waypoints.map(wp => wp.latlng);
+  const latlngs = src.map(forMap);
+  map.fitBounds(L.latLngBounds(latlngs).pad(0.2), { maxZoom: 17, animate: false });
+}
+
+/* ================= 真实地图绘制 ================= */
+function drawOnMap(r) {
+  routeLayer.clearLayers();
+  // 优先沿真实路径的完整坐标序列绘制（非仅途径点连线）
+  const src = r.fullPath || r.waypoints.map(wp => wp.latlng);
+  const latlngs = src.map(forMap);
+
+  // 路线
+  L.polyline(latlngs, { color: '#22c55e', weight: 5, opacity: 0.85 }).addTo(routeLayer);
+  L.polyline(latlngs, { color: '#4ade80', weight: 2, opacity: 0.9, dashArray: '6 8' }).addTo(routeLayer);
+  L.circle(latlngs[0], { radius: 120, color: '#38bdf8', weight: 1, fillOpacity: 0.08 }).addTo(routeLayer);
+
+  // 起点由可拖动的 startMarker 显示（拖动它或点击地图可修改起点）
+  placeStartMarker(latlngs[0]);
+  startMarker.bindPopup(`<b>起点：${r.waypoints[0].name}</b><br>拖动此标记可修改起点`);
+
+  // 节点标记：起点用「起」标记、折返点用「终」标记，其余每约 200 米一个圆点标记
+  r.waypoints.forEach((wp, i) => {
+    if (i === 0) return; // 起点由 startMarker 显示
+    if (wp.type === 'end') return; // 环线/往返终点即起点，由「起」标记显示
+    L.circleMarker(latlngs[i], { radius: 4, color: '#16a34a', weight: 1, fillColor: '#4ade80', fillOpacity: 1 })
+      .addTo(routeLayer)
+      .bindPopup(`途经点 · 累计 ${wp.km.toFixed(2)} km`);
+  });
+
+  // 沿途补给点标记（便利店 🏪 / 公厕 🚻，需高德 Key 且真实路网路线才有）
+  (r.supply || []).forEach(sp => {
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="font-size:16px;text-shadow:0 1px 3px rgba(0,0,0,.8)">${sp.kind === 'toilet' ? '🚻' : '🏪'}</div>`,
+      iconSize: [18, 18], iconAnchor: [9, 9]
+    });
+    L.marker(forMap(sp.latlng), { icon }).addTo(routeLayer)
+      .bindPopup(`<b>${sp.kind === 'toilet' ? '🚻 公厕' : '🏪 补给点'}</b><br>${sp.name}`);
+  });
+
+  // 已设置折返目标时显示橙色「终」标记（往返路线的折返点）
+  if (endLatLng) {
+    placeEndMarker(forMap(endLatLng));
+    endMarker.bindPopup(`<b>折返目标：${endName}</b><br>规划将生成往返路线`);
+  }
+
+  // 地图可见时按路线长短自适应视野；隐藏状态下等切回地图时再自适应
+  if (!document.getElementById('mapBox').classList.contains('hidden')) {
+    setTimeout(fitRoute, 80);
+  }
+}
+
+/* ================= 途径地点清单 ================= */
+function drawList(r) {
+  const ul = document.getElementById('waypointList');
+  ul.innerHTML = r.waypoints.map((wp, i) => {
+    const cls = wp.type === 'start' ? 'start' : (wp.type === 'end' ? 'end' : '');
+    return `
+      <li>
+        <div class="wp-idx ${cls}">${i + 1}</div>
+        <div>
+          <div class="wp-name">${wp.name}</div>
+          <div class="wp-meta">累计里程 ${wp.km.toFixed(2)} km ｜ 路段：${wp.road}
+            ｜ 坐标 ${wp.latlng[0].toFixed(5)}, ${wp.latlng[1].toFixed(5)}</div>
+        </div>
+      </li>
+    `;
+  }).join('');
+}
+
+/* ================= 导出 GPX（可导入运动手表 / 跑步 App） ================= */
+function escapeXml(s) {
+  return String(s).replace(/[<>&'"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;',"'":'&apos;','"':'&quot;'}[c]));
+}
+function exportGPX() {
+  const r = currentRoute;
+  if (!r) return;
+  const path = r.fullPath || r.waypoints.map(wp => wp.latlng);
+  const trkpts = path.map(p => `      <trkpt lat="${p[0].toFixed(6)}" lon="${p[1].toFixed(6)}"></trkpt>`).join('\n');
+  const wpts = r.waypoints.map(wp =>
+    `  <wpt lat="${wp.latlng[0].toFixed(6)}" lon="${wp.latlng[1].toFixed(6)}"><name>${escapeXml(wp.name)}</name><desc>累计 ${wp.km.toFixed(2)} km</desc></wpt>`).join('\n');
+  const gpx = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="跑步路线规划助手" xmlns="http://www.topografix.com/GPX/1/1">\n${wpts}\n  <trk><name>跑步路线 ${r.totalKm.toFixed(2)} km</name><trkseg>\n${trkpts}\n  </trkseg></trk>\n</gpx>`;
+  const blob = new Blob([gpx], { type: 'application/gpx+xml' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `跑步路线-${r.totalKm.toFixed(1)}km.gpx`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ================= 收藏路线（保存在浏览器本地，最多 10 条） ================= */
+function getSavedRoutes() {
+  try { return JSON.parse(localStorage.getItem('savedRoutes') || '[]'); } catch (e) { return []; }
+}
+function saveRoute() {
+  const r = currentRoute;
+  if (!r || !baseLatLng) return;
+  const path = r.fullPath || r.waypoints.map(wp => wp.latlng);
+  const step = Math.max(1, Math.floor(path.length / 200)); // 抽稀路径，防止超出存储限制
+  const slim = path.filter((_, i) => i % step === 0 || i === path.length - 1);
+  const item = {
+    id: Date.now(),
+    name: (r.viaName ? '途经 ' + r.viaName + ' · ' : '') + r.totalKm.toFixed(2) + ' km',
+    date: new Date().toLocaleDateString('zh-CN'),
+    totalKm: r.totalKm, totalMin: r.totalMin, pace: r.pace, road: r.road,
+    fullPath: slim,
+    start: [baseLatLng[0], baseLatLng[1]],
+    startName: (r.waypoints[0] && r.waypoints[0].name) || '起点'
+  };
+  const saved = getSavedRoutes();
+  saved.unshift(item);
+  localStorage.setItem('savedRoutes', JSON.stringify(saved.slice(0, 10)));
+  renderSaved();
+  renderRunStats();
+  const hint = document.getElementById('locHint');
+  hint.textContent = '⭐ 已收藏当前路线（保存在浏览器本地，下次打开自动显示）。';
+  hint.classList.add('ok');
+}
+function renderSaved() {
+  const saved = getSavedRoutes();
+  const reviews = getReviews();
+  document.getElementById('savedList').innerHTML = saved.map(s => {
+    const key = `${s.start[0].toFixed(3)},${s.start[1].toFixed(3)}|${s.totalKm.toFixed(1)}`;
+    const rv = reviews[key];
+    let rvTxt = '';
+    if (rv) {
+      const vals = ['light', 'road', 'crowd'].map(d => rv[d] || 0).filter(v => v);
+      if (vals.length) rvTxt = ` ｜ 📝 ${(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1)}★`;
+    }
+    return `
+    <div class="saved-item">
+      <div class="grow" onclick="loadSaved(${s.id})">⭐ ${s.name} ｜ ${s.date} ｜ 预计 ${fmtTime(s.totalMin)} ｜ ${s.road}${rvTxt}</div>
+      <button class="del" onclick="deleteSaved(${s.id})">🗑️</button>
+    </div>`;
+  }).join('');
+}
+function loadSaved(id) {
+  const s = getSavedRoutes().find(x => x.id === id);
+  if (!s) return;
+  initMap();
+  baseLatLng = s.start;
+  baseName = s.startName;
+  updateWeather(s.start[0], s.start[1]);
+  const waypoints = sampleAlongPath(s.fullPath, s.startName, s.startName + '（返回）', 'loop');
+  currentRoutes = [{
+    waypoints, fullPath: s.fullPath, totalKm: s.totalKm, totalMin: s.totalMin,
+    pace: s.pace, safe: false, road: s.road + '（收藏）',
+    note: '⭐ 收藏路线。若需重新规划，请以此位置为起点点击「开始规划路线」。',
+    navSteps: null, viaName: null, safeTag: false
+  }];
+  renderResult();
+}
+function deleteSaved(id) {
+  const saved = getSavedRoutes().filter(x => x.id !== id);
+  localStorage.setItem('savedRoutes', JSON.stringify(saved));
+  renderSaved();
+  renderRunStats();
+}
+
+/* ================= 励志名言轮播（顶部横幅，每 6 秒切换） ================= */
+const runQuotes = [
+  ['痛楚不可避免，苦难可以选择。', '村上春树 · 《当我谈跑步时我谈些什么》'],
+  ['没有人类是有极限的。', '埃鲁德·基普乔格'],
+  ['想跑得快就独自跑，想跑得远就一起跑。', '非洲谚语'],
+  ['三公里专治各种不爽，五公里只治愈心灵。', '跑者格言'],
+  ['你不必跑得很快，但一定要一直跑。', '跑者格言'],
+  ['最好的配速，是能让你一直跑下去的配速。', '跑者格言'],
+  ['每一滴汗水，都是通向更好自己的一步。', '跑者格言'],
+  ['自律是目标与成就之间的桥梁。', '吉姆·罗恩'],
+  ['不要等到想跑才开始，开始跑了才会想跑。', '跑者格言'],
+  ['迎着朝阳跑，追着夕阳跑，风雨无阻，向光而行。', '跑者格言'],
+  ['跑步的意义不是超越别人，而是超越昨天的自己。', '跑者格言'],
+  ['路在脚下，风在耳边，跑起来就有答案。', '跑者格言']
+];
+let quoteIdx = 0, currentQuoteText = runQuotes[0][0];
+function showQuote() {
+  const el = document.getElementById('quoteText');
+  const [text, from] = runQuotes[quoteIdx % runQuotes.length];
+  el.classList.add('fade');
+  setTimeout(() => {
+    currentQuoteText = text;
+    el.textContent = `❝ ${text} ❞ —— ${from}`;
+    el.classList.remove('fade');
+  }, 500);
+  quoteIdx++;
+}
+showQuote();
+setInterval(showQuote, 6000);
+
+/* ================= 天气跑步建议（Open-Meteo，免费无需 Key） ================= */
+const WMO_SKY = { 0: '☀️ 晴', 1: '🌤 少云', 2: '⛅ 多云', 3: '☁️ 阴', 45: '🌫 雾', 48: '🌫 冻雾', 51: '🌦 毛毛雨', 53: '🌦 小雨', 55: '🌧 中雨', 61: '🌧 小雨', 63: '🌧 中雨', 65: '🌧 大雨', 71: '🌨 小雪', 80: '🌦 阵雨', 81: '🌧 强阵雨', 95: '⛈ 雷阵雨', 96: '⛈ 雷雨冰雹' };
+let weatherCache = { key: '', data: null };
+function judgeRunWeather(c) {
+  const feel = c.apparent_temperature ?? c.temperature_2m;
+  if (c.precipitation > 0) return { level: 'bad', text: '❌ 正在下雨，不建议跑步', tip: '等雨停或改室内训练' };
+  if (feel >= 32) return { level: 'bad', text: `❌ 体感 ${feel.toFixed(0)}℃，有中暑风险`, tip: '建议日落后或清晨跑，随身带水' };
+  if (feel <= 0) return { level: 'bad', text: `❌ 体感 ${feel.toFixed(0)}℃，过冷`, tip: '今日建议改为室内运动' };
+  if (feel >= 27) return { level: 'warn', text: `⚠️ 体感 ${feel.toFixed(0)}℃，偏热`, tip: '降速补水，避开正午时段' };
+  if (feel <= 5) return { level: 'warn', text: `⚠️ 体感 ${feel.toFixed(0)}℃，偏冷`, tip: '充分热身，注意防风保暖' };
+  if (c.relative_humidity_2m > 85) return { level: 'warn', text: `⚠️ 湿度 ${c.relative_humidity_2m}%，体感闷`, tip: '适当降低配速' };
+  if (c.wind_speed_10m > 30) return { level: 'warn', text: `⚠️ 风力较大（${c.wind_speed_10m.toFixed(0)} km/h）`, tip: '逆风路段注意安全' };
+  return { level: 'good', text: `✅ 体感 ${feel.toFixed(0)}℃、湿度 ${c.relative_humidity_2m}%，适合跑步！`, tip: '现在就是最好的跑步时机，出发吧！' };
+}
+async function updateWeather(lat, lng) {
+  const box = document.getElementById('weatherBox');
+  const key = lat.toFixed(2) + ',' + lng.toFixed(2);
+  box.classList.remove('hidden');
+  if (weatherCache.key === key && weatherCache.data) { renderWeather(weatherCache.data); return; }
+  box.className = 'weather-box';
+  box.textContent = '🌤 正在获取当前天气…';
+  try {
+    const d = await fetchJson(
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}` +
+      `&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,precipitation,weather_code&timezone=auto`,
+      8000);
+    const advice = judgeRunWeather(d.current);
+    weatherCache = { key, data: { c: d.current, advice } };
+    renderWeather(weatherCache.data);
+  } catch (e) {
+    box.textContent = '⛅ 天气信息暂不可用（不影响路线规划）';
+  }
+}
+function renderWeather(data) {
+  const box = document.getElementById('weatherBox');
+  box.className = 'weather-box ' + data.advice.level;
+  const sky = WMO_SKY[data.c.weather_code] || '';
+  box.innerHTML = `<div>${sky} ${data.advice.text}</div>` +
+    `<div style="opacity:.85">💡 ${data.advice.tip} ｜ 风速 ${data.c.wind_speed_10m.toFixed(0)} km/h</div>`;
+}
+
+/* ================= 热量估算（MET 法：代谢当量 × 体重 × 时长） ================= */
+const MET_TABLE = [[6.4, 6], [8, 8.3], [9.7, 9.8], [10.8, 11], [11.3, 11.5], [12.9, 12.8], [14.5, 14.5], [16, 16]];
+function metBySpeed(kmh) {
+  const t = MET_TABLE;
+  if (kmh <= t[0][0]) return t[0][1];
+  for (let i = 1; i < t.length; i++) {
+    if (kmh <= t[i][0]) {
+      const [s1, m1] = t[i - 1], [s2, m2] = t[i];
+      return m1 + (m2 - m1) * (kmh - s1) / (s2 - s1);
+    }
+  }
+  return t[t.length - 1][1];
+}
+function calcKcal(r) {
+  const kg = parseFloat(document.getElementById('weightInput').value) || 65;
+  return Math.round(metBySpeed(60 / r.pace) * kg * (r.totalMin / 60));
+}
+
+/* ================= 分享海报（canvas 绘制 → PNG，可保存转发） ================= */
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+/* 地点名称截取到区/县级（如「四川省成都市武侯区」），海报等分享场景不暴露具体街道门牌 */
+function toDistrict(name) {
+  if (!name) return '起点';
+  if (/GPS|地图选点/.test(name)) return '我的位置';
+  let m = name.match(/([\u4e00-\u9fa5]{2,10}?(?:省|自治区)[^，,]{2,12}?市[\u4e00-\u9fa5]{2,10}?(?:区|县|旗))/);
+  if (m) return m[1];
+  m = name.match(/([\u4e00-\u9fa5]{2,10}?市[\u4e00-\u9fa5]{2,10}?(?:区|县|旗))/);
+  if (m) return m[1];
+  m = name.match(/([\u4e00-\u9fa5]{2,8}?(?:区|县|旗))/);
+  if (m) return m[1];
+  return name;
+}
+
+/* Web Mercator 像素换算 + 瓦片加载（海报卫星图背景用） */
+function mercY(lat) {
+  const s = Math.sin(lat * Math.PI / 180);
+  return Math.log((1 + s) / (1 - s)) / 2;
+}
+function latLngToPixel(lat, lng, z) {
+  const scale = 256 * Math.pow(2, z);
+  return [(lng + 180) / 360 * scale, (0.5 - mercY(lat) / (2 * Math.PI)) * scale];
+}
+function loadTile(url) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+async function makePoster() {
+  const r = currentRoute;
+  if (!r) return;
+  document.getElementById('posterModal').classList.remove('hidden');
+  const imgEl = document.getElementById('posterImg');
+  imgEl.removeAttribute('src');
+  // 优先卫星地图背景（纯影像、无地名文字）；瓦片跨域受限时自动退回纯色背景
+  let url = null;
+  try { url = await drawPoster(r, true); } catch (e) { url = null; }
+  if (!url) url = await drawPoster(r, false);
+  imgEl.src = url;
+  const dl = document.getElementById('posterDownload');
+  dl.href = url;
+  dl.download = `跑步路线${r.totalKm.toFixed(1)}km海报.png`;
+}
+
+async function drawPoster(r, withMap) {
+  const W = 750, H = 1000;
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d');
+  // 背景渐变（与页面同风格）
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#0f172a'); bg.addColorStop(0.6, '#1e293b'); bg.addColorStop(1, '#14532d');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  // 标题区
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#4ade80'; ctx.font = 'bold 44px "Microsoft YaHei", sans-serif';
+  ctx.fillText('🏃 我的跑步路线', W / 2, 92);
+  ctx.fillStyle = '#94a3b8'; ctx.font = '22px "Microsoft YaHei", sans-serif';
+  ctx.fillText(new Date().toLocaleDateString('zh-CN') + ' · 跑步路线规划助手', W / 2, 132);
+  // 路线区：高德卫星瓦片为 GCJ-02，先统一转换路线坐标保证贴合底图
+  const bx = 80, by = 190, bw = W - 160, bh = 400;
+  const path = (r.fullPath || r.waypoints.map(w => w.latlng)).map(p => wgs84ToGcj02(p[0], p[1]));
+  // 选择能让路线占满区域约九成的最大缩放级别（地图细节最丰富）
+  let z = 3;
+  for (let t = 17; t >= 3; t--) {
+    const pp = path.map(p => latLngToPixel(p[0], p[1], t));
+    const ppx = pp.map(p => p[0]), ppy = pp.map(p => p[1]);
+    const ww = Math.max.apply(null, ppx) - Math.min.apply(null, ppx);
+    const hh = Math.max.apply(null, ppy) - Math.min.apply(null, ppy);
+    if (ww <= bw * 0.88 && hh <= bh * 0.88) { z = t; break; }
+  }
+  const pix = path.map(p => latLngToPixel(p[0], p[1], z));
+  const ppx = pix.map(p => p[0]), ppy = pix.map(p => p[1]);
+  const cxPix = (Math.min.apply(null, ppx) + Math.max.apply(null, ppx)) / 2;
+  const cyPix = (Math.min.apply(null, ppy) + Math.max.apply(null, ppy)) / 2;
+  const originX = bx + bw / 2 - cxPix, originY = by + bh / 2 - cyPix; // 瓦片像素(0,0)对应的画布坐标
+  const toXY = i => [originX + pix[i][0], originY + pix[i][1]];
+  ctx.save();
+  roundRect(ctx, bx - 20, by - 20, bw + 40, bh + 40, 24);
+  ctx.clip();
+  if (withMap) {
+    // 高德卫星瓦片（style=6，纯影像无地名文字），瓦片数上限 40 防止等待过久
+    const tx0 = Math.floor((cxPix - bw / 2 - 60) / 256), tx1 = Math.floor((cxPix + bw / 2 + 60) / 256);
+    const ty0 = Math.floor((cyPix - bh / 2 - 60) / 256), ty1 = Math.floor((cyPix + bh / 2 + 60) / 256);
+    const tiles = [];
+    for (let tx = tx0; tx <= tx1; tx++) for (let ty = ty0; ty <= ty1; ty++) tiles.push([tx, ty]);
+    const list = tiles.slice(0, 40);
+    const imgs = await Promise.all(list.map(([tx, ty]) =>
+      loadTile(`https://webst0${(tx + ty) % 4 + 1}.is.autonavi.com/appmaptile?style=6&x=${tx}&y=${ty}&z=${z}`)));
+    let ok = 0;
+    list.forEach(([tx, ty], i) => {
+      const dx = originX + tx * 256, dy = originY + ty * 256;
+      if (imgs[i]) { ctx.drawImage(imgs[i], dx, dy, 256, 256); ok++; }
+      else { ctx.fillStyle = '#182234'; ctx.fillRect(dx, dy, 256, 256); }
+    });
+    if (ok === 0) throw new Error('瓦片不可用'); // 触发外层回退纯色背景
+    // 暗色蒙版：压暗地图细节，让绿色路线更醒目，也避免暴露过多环境细节
+    ctx.fillStyle = 'rgba(10,15,28,.42)';
+    ctx.fillRect(bx - 20, by - 20, bw + 40, bh + 40);
+  } else {
+    ctx.fillStyle = 'rgba(148,163,184,.08)';
+    ctx.fillRect(bx - 20, by - 20, bw + 40, bh + 40);
+  }
+  ctx.restore();
+  // 外框 + 路线绘制（复用瓦片像素坐标系）
+  ctx.strokeStyle = 'rgba(148,163,184,.25)'; ctx.lineWidth = 2;
+  roundRect(ctx, bx - 20, by - 20, bw + 40, bh + 40, 24); ctx.stroke();
+  ctx.strokeStyle = '#4ade80'; ctx.lineWidth = 6; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.beginPath();
+  pix.forEach((p, i) => { const xy = toXY(i); i ? ctx.lineTo(xy[0], xy[1]) : ctx.moveTo(xy[0], xy[1]); });
+  ctx.stroke();
+  // 200 米途经点 + 起点标记
+  ctx.fillStyle = 'rgba(74,222,128,.9)';
+  r.waypoints.forEach(wp => {
+    const g = wgs84ToGcj02(wp.latlng[0], wp.latlng[1]);
+    const p = latLngToPixel(g[0], g[1], z);
+    ctx.beginPath(); ctx.arc(originX + p[0], originY + p[1], 4, 0, 7); ctx.fill();
+  });
+  const s0 = toXY(0);
+  ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(s0[0], s0[1], 13, 0, 7); ctx.fill();
+  ctx.fillStyle = '#082f49'; ctx.font = 'bold 14px "Microsoft YaHei", sans-serif';
+  ctx.fillText('起', s0[0], s0[1] + 5);
+  // 数据卡片（2 列 × 2 行）
+  const kcal = calcKcal(r);
+  const rows = [
+    ['总距离', r.totalKm.toFixed(2) + ' km'],
+    ['预计耗时', fmtTime(r.totalMin)],
+    ['配速', r.pace.toFixed(1) + ' min/km'],
+    ['预计消耗', kcal + ' kcal ≈ ' + (kcal / 200).toFixed(1) + ' 碗米饭']
+  ];
+  ctx.textAlign = 'left';
+  rows.forEach((row, i) => {
+    const x = 70 + (i % 2) * 320, y = 690 + Math.floor(i / 2) * 110;
+    ctx.fillStyle = 'rgba(148,163,184,.12)';
+    roundRect(ctx, x, y - 52, 295, 92, 16); ctx.fill();
+    ctx.fillStyle = '#94a3b8'; ctx.font = '20px "Microsoft YaHei", sans-serif';
+    ctx.fillText(row[0], x + 18, y - 18);
+    ctx.fillStyle = '#4ade80'; ctx.font = 'bold 26px "Microsoft YaHei", sans-serif';
+    ctx.fillText(row[1], x + 18, y + 22);
+  });
+  // 底部：起点名称 + 当前励志名言
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#e2e8f0'; ctx.font = '22px "Microsoft YaHei", sans-serif';
+  ctx.fillText('📍 ' + toDistrict(baseName), W / 2, 925);
+  ctx.fillStyle = '#86efac'; ctx.font = 'italic 20px "Microsoft YaHei", sans-serif';
+  ctx.fillText('❝ ' + currentQuoteText + ' ❞', W / 2, 962);
+  return cv.toDataURL('image/png'); // 若瓦片跨域污染画布，此处抛 SecurityError → 由 makePoster 自动回退纯色版
+}
+function closePoster(e) {
+  if (e.target.id === 'posterModal') document.getElementById('posterModal').classList.add('hidden');
+}
+
+/* ================= 沿途补给点（高德 POI：便利店/超市/公厕，需 Key） ================= */
+async function fetchSupplyPOIs(path) {
+  const key = amapKey();
+  if (!key || !path || path.length < 2) return [];
+  // 以路线中点为搜索圆心，半径按路线跨度自适应（800~3000 米）
+  const mid = path[Math.floor(path.length / 2)];
+  const g = wgs84ToGcj02(mid[0], mid[1]);
+  const span = haversine(path[0], mid) || 1;
+  const radius = Math.min(3000, Math.max(800, Math.round(span * 1500)));
+  try {
+    const d = await fetchJson(
+      `https://restapi.amap.com/v3/place/around?key=${key}&location=${g[1].toFixed(6)},${g[0].toFixed(6)}` +
+      `&types=060000|200300&radius=${radius}&offset=25&page=1`,
+      8000);
+    if (d.status !== '1' || !Array.isArray(d.pois)) return [];
+    const out = [];
+    d.pois.forEach(p => {
+      const [lng, lat] = p.location.split(',').map(Number);
+      const w = gcj02ToWgs84(lat, lng);
+      // 只保留距路线 150 米以内的，才算「沿途」补给点
+      let best = Infinity;
+      for (let i = 0; i < path.length; i += 3) {
+        const dd = haversine(w, path[i]);
+        if (dd < best) best = dd;
+      }
+      if (best > 0.15) return;
+      out.push({
+        latlng: w, name: p.name,
+        kind: String(p.typecode || '').startsWith('20') ? 'toilet' : 'shop'
+      });
+    });
+    return out.slice(0, 8);
+  } catch (e) { return []; }
+}
+async function addSupplyPoints() {
+  if (!amapKey()) return;
+  for (const r of currentRoutes) {
+    if (r.supply || !r.fullPath || r.road === '模拟路径') continue;
+    r.supply = await fetchSupplyPOIs(r.fullPath);
+  }
+  if (currentRoute && (currentRoute.supply || []).length) {
+    refreshNote(currentRoute);
+    if (outMode === 'map') drawOnMap(currentRoute);
+  }
+}
+
+/* ================= 提示区（路线备注 + 补给点汇总） ================= */
+function refreshNote(r) {
+  const noteEl = document.getElementById('adjustNote');
+  let text = r.note || '';
+  if (r.supply && r.supply.length) {
+    const shops = r.supply.filter(s => s.kind === 'shop').length;
+    text += `\n🏪 沿途有 ${r.supply.length} 个补给点（${shops} 家店铺、${r.supply.length - shops} 处公厕），已在地图上标注。`;
+  }
+  if (text) { noteEl.textContent = text; noteEl.style.whiteSpace = 'pre-line'; noteEl.classList.remove('hidden'); }
+  else noteEl.classList.add('hidden');
+}
+
+/* ================= 路线点评（照明/路况/人流星级，存 localStorage） ================= */
+const REVIEW_DIMS = [['light', '照明'], ['road', '路况'], ['crowd', '人流']];
+function reviewKey(r) {
+  const s = baseLatLng || [0, 0];
+  return `${s[0].toFixed(3)},${s[1].toFixed(3)}|${r.totalKm.toFixed(1)}`;
+}
+function getReviews() {
+  try { return JSON.parse(localStorage.getItem('routeReviews') || '{}'); } catch (e) { return {}; }
+}
+function renderReview() {
+  const box = document.getElementById('reviewBox');
+  if (!currentRoute || currentRoute.road === '模拟路径') { box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  const saved = getReviews()[reviewKey(currentRoute)] || {};
+  document.getElementById('reviewRows').innerHTML = REVIEW_DIMS.map(([id, label]) => {
+    const v = saved[id] || 0;
+    const stars = [1, 2, 3, 4, 5].map(n =>
+      `<span class="star ${n <= v ? 'on' : ''}" data-dim="${id}" data-n="${n}">★</span>`).join('');
+    return `<div class="review-row"><span class="rlabel">${label}</span>${stars}<span class="rval">${v ? v + ' 星' : '未评'}</span></div>`;
+  }).join('');
+}
+document.getElementById('reviewRows').addEventListener('click', e => {
+  const star = e.target.closest('.star');
+  if (!star || !currentRoute) return;
+  const key = reviewKey(currentRoute);
+  const reviews = getReviews();
+  reviews[key] = reviews[key] || { date: new Date().toLocaleDateString('zh-CN') };
+  reviews[key][star.dataset.dim] = +star.dataset.n;
+  localStorage.setItem('routeReviews', JSON.stringify(reviews));
+  renderReview();
+  renderRunStats(); // 「首次点评」徽章依赖点评数量
+  renderSaved();    // 收藏列表同步显示评分
+});
+
+/* ================= 跑步日志（打卡）与成就徽章 ================= */
+function getRunLog() {
+  try { return JSON.parse(localStorage.getItem('runLog') || '[]'); } catch (e) { return []; }
+}
+function logRun() {
+  const r = currentRoute;
+  if (!r) return;
+  const log = getRunLog();
+  log.unshift({ date: dayStr(0), km: +r.totalKm.toFixed(2), min: Math.round(r.totalMin) });
+  localStorage.setItem('runLog', JSON.stringify(log.slice(0, 300)));
+  renderRunStats();
+  const hint = document.getElementById('locHint');
+  hint.textContent = `✅ 已打卡！本次记录 ${r.totalKm.toFixed(2)} km，继续加油 💪`;
+  hint.classList.add('ok');
+}
+function dayStr(offset) {
+  const d = new Date();
+  d.setDate(d.getDate() - offset);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function calcStreak(log) {
+  const days = new Set(log.map(e => e.date));
+  let streak = 0;
+  let i = days.has(dayStr(0)) ? 0 : 1; // 今天还没打卡时从昨天开始数（不断连）
+  for (; i <= 400; i++) {
+    if (days.has(dayStr(i))) streak++; else break;
+  }
+  return streak;
+}
+const BADGES = [
+  { icon: '🎽', name: '首次出发', desc: '记录第 1 次跑步', test: s => s.count >= 1 },
+  { icon: '🏃', name: '50 公里里程碑', desc: '累计跑满 50 公里', test: s => s.totalKm >= 50 },
+  { icon: '🔥', name: '百公里俱乐部', desc: '累计跑满 100 公里', test: s => s.totalKm >= 100 },
+  { icon: '📅', name: '七天坚持', desc: '连续打卡 7 天', test: s => s.streak >= 7 },
+  { icon: '🗺️', name: '路线探索家', desc: '收藏 5 条路线', test: s => s.saved >= 5 },
+  { icon: '📝', name: '首次点评', desc: '第一次给路线打分', test: s => s.reviews >= 1 }
+];
+function renderRunStats() {
+  const log = getRunLog();
+  const saved = getSavedRoutes();
+  const statsBox = document.getElementById('runStatsBox');
+  const savedBox = document.getElementById('savedBox');
+  if (log.length) {
+    const totalKm = log.reduce((s, e) => s + e.km, 0);
+    const streak = calcStreak(log);
+    statsBox.classList.remove('hidden');
+    document.getElementById('runStats').innerHTML =
+      `🏁 累计跑步 <b style="color:var(--primary)">${totalKm.toFixed(1)} km</b>（${log.length} 次打卡） ｜ 🔥 连续打卡 <b style="color:var(--primary)">${streak}</b> 天`;
+    const stat = { count: log.length, totalKm, streak, saved: saved.length, reviews: Object.keys(getReviews()).length };
+    document.getElementById('badgeWall').innerHTML = BADGES.map(b =>
+      `<span class="badge ${b.test(stat) ? 'won' : 'locked'}" title="${b.desc}${b.test(stat) ? '（已解锁）' : '（未解锁）'}">${b.icon} ${b.name}</span>`).join('');
+  } else {
+    statsBox.classList.add('hidden');
+  }
+  // 有日志或有收藏时显示整个区域；收藏标题仅在有收藏时显示
+  savedBox.classList.toggle('hidden', !log.length && !saved.length);
+  document.getElementById('savedTitle').classList.toggle('hidden', !saved.length);
+}
+
+/* ================= 高德 Key 引导与页面初始化 ================= */
+function dismissKeyGuide() {
+  document.getElementById('keyGuide').classList.add('hidden');
+  localStorage.setItem('keyGuideDismissed', '1');
+}
+/* 高级设置折叠面板（默认隐藏高德 Key 输入，页面更清爽） */
+function toggleAdv() {
+  const box = document.getElementById('advBox');
+  const open = !box.classList.toggle('hidden');
+  document.getElementById('advArrow').textContent = open ? '▾' : '▸';
+}
+if (!amapKey() && !localStorage.getItem('keyGuideDismissed')) {
+  document.getElementById('keyGuide').classList.remove('hidden');
+}
+// 用户填入 Key 后引导自动收起（重新规划时路网、转向指引、智能选向全部生效）
+amapKeyInput.addEventListener('input', () => {
+  if (amapKeyInput.value.trim()) document.getElementById('keyGuide').classList.add('hidden');
+});
+// 体重输入（用于热量估算，保存到本地，修改后自动刷新当前路线数据）
+const weightInput = document.getElementById('weightInput');
+weightInput.value = localStorage.getItem('runnerWeight') || '65';
+weightInput.addEventListener('change', () => {
+  localStorage.setItem('runnerWeight', weightInput.value.trim() || '65');
+  if (currentRoute) selectRoute(currentIdx);
+});
+renderSaved();
+renderRunStats();
+</script>
+</body>
+</html>
