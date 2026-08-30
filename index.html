@@ -268,6 +268,46 @@
   .heat-cell.future { background: transparent; }
   .heat-legend { font-size: 11px; color: var(--text-dim); margin-top: 8px; display: flex; align-items: center; gap: 5px; }
   .heat-legend .heat-cell { display: inline-block; }
+
+  /* ================= 手机端专项适配（≤640px） ================= */
+  @media (max-width: 640px) {
+    header { padding: 16px 14px 6px; }
+    header h1 { font-size: 21px; }
+    header p { font-size: 12px; }
+    .quote-bar { padding: 0 14px; }
+    #quoteText { font-size: 12px; }
+    .key-guide { padding: 8px 14px 0; }
+    .container { padding: 12px 12px 28px; gap: 14px; }
+    .card { padding: 15px; border-radius: 14px; }
+    /* 关键：输入框字号 ≥16px，避免 iOS 聚焦时自动放大整个页面 */
+    input[type=text], input[type=number], select { font-size: 16px; padding: 9px 11px; }
+    label { margin: 10px 0 5px; }
+    .btn { padding: 10px 14px; font-size: 13px; }
+    .btn-primary { margin-top: 14px; }
+    .stats { gap: 8px; }
+    .stat { padding: 9px 4px; }
+    .stat .v { font-size: 15px; }
+    .stat .k { font-size: 10px; }
+    /* 5 格统计在 2 列布局下，最后一格占满整行不留孤格 */
+    .stat:last-child { grid-column: span 2; }
+    .toggle-bar { gap: 6px; margin-bottom: 10px; }
+    .chip { padding: 5px 10px; font-size: 11px; }
+    #mapBox { height: 330px; }
+    .empty { padding: 44px 16px; font-size: 12px; }
+    /* 5 个操作按钮换行两两排列，不再挤成一行变得又高又窄 */
+    .alternatives { flex-wrap: wrap; gap: 8px; }
+    .alternatives .btn { flex: 1 1 46%; font-size: 12px; padding: 9px 4px; }
+    .voice-bar .btn { font-size: 12px; padding: 8px 4px; }
+    .modal { padding: 12px; }
+    .modal-card { max-width: 94vw; }
+    .modal-btns { flex-wrap: wrap; }
+    .review-row .rlabel { width: 52px; }
+    .star { font-size: 17px; }
+    .run-stats { font-size: 12px; }
+    .saved-item { font-size: 11px; }
+    .weather-box { font-size: 11px; padding: 8px 10px; }
+    .wp-name { font-size: 13px; }
+  }
 </style>
 </head>
 <body>
