@@ -92,6 +92,7 @@
   .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 16px; }
   .stat { background: var(--card-light); border-radius: 12px; padding: 12px 6px; text-align: center; }
   .stat .v { font-size: 17px; font-weight: 700; color: var(--primary); }
+  .stat .v.v-sm { font-size: 13px; line-height: 1.35; word-break: keep-all; overflow-wrap: break-word; } /* 路况等长文本：整体换行，绝不逐字竖排 */
   .stat .k { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
   @media (max-width: 560px) { .stats { grid-template-columns: repeat(2, 1fr); } }
   .toggle-bar { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
@@ -287,6 +288,7 @@
     .stats { gap: 8px; }
     .stat { padding: 9px 4px; }
     .stat .v { font-size: 15px; }
+    .stat .v.v-sm { font-size: 12px; }
     .stat .k { font-size: 10px; }
     /* 5 格统计在 2 列布局下，最后一格占满整行不留孤格 */
     .stat:last-child { grid-column: span 2; }
@@ -408,7 +410,7 @@
         <div class="stat"><div class="v" id="statDist">-</div><div class="k">总距离 (km)</div></div>
         <div class="stat"><div class="v" id="statTime">-</div><div class="k">预计耗时</div></div>
         <div class="stat"><div class="v" id="statPace">-</div><div class="k">配速 (min/km)</div></div>
-        <div class="stat"><div class="v" id="statRoad">-</div><div class="k">主要路况</div></div>
+        <div class="stat"><div class="v v-sm" id="statRoad">-</div><div class="k">主要路况</div></div>
         <div class="stat" id="statKcalBox"><div class="v" id="statKcal">-</div><div class="k">预计消耗 (kcal)</div></div>
       </div>
 
@@ -1397,7 +1399,10 @@ function selectRoute(i) {
   document.getElementById('statDist').textContent = r.totalKm.toFixed(2);
   document.getElementById('statTime').textContent = fmtTime(r.totalMin);
   document.getElementById('statPace').textContent = r.pace.toFixed(1);
-  document.getElementById('statRoad').textContent = r.road.split(' / ')[0];
+  // 路况文案分级缩短：窄格子里放完整长句会逐字竖排，改用短标签（完整信息见路线对比卡片）
+  const roadLabel = r.road.includes('主干道优先') ? '主干道优先' : r.road.includes('真实') ? '真实路网' : r.road.split(' / ')[0];
+  document.getElementById('statRoad').textContent = roadLabel;
+  document.getElementById('statRoad').title = r.road;
   const kcal = calcKcal(r);
   document.getElementById('statKcal').textContent = kcal;
   document.getElementById('statKcalBox').title = `≈ ${(kcal / 200).toFixed(1)} 碗米饭（1 碗米饭 ≈ 200 kcal）`;
