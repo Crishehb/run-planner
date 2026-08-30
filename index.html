@@ -9,8 +9,19 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" type="image/png" href="icon.png">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://registry.npmmirror.com/leaflet/1.9.4/files/dist/leaflet.css" onerror="this.onerror=null;this.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'">
+<script src="https://registry.npmmirror.com/leaflet/1.9.4/files/dist/leaflet.js" onerror="this.onerror=null;this.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'"></script>
+<script>
+/* 地图组件加载检测：双源 CDN 都失败时在顶部挂提示条，避免整页无反应用户不知所措 */
+window.addEventListener('DOMContentLoaded', function () {
+  if (!window.L) {
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#b45309;color:#fff;text-align:center;font-size:13px;padding:8px 12px;line-height:1.6;';
+    d.textContent = '⚠️ 地图组件加载失败：请检查网络后刷新，或切换网络（如 Wi-Fi ↔ 流量）再试';
+    document.body.appendChild(d);
+  }
+});
+</script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   :root {
@@ -138,7 +149,7 @@
     border-radius: 50%; animation: spin .8s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-  footer { text-align: center; color: rgba(148,163,184,.5); font-size: 11px; padding-bottom: 24px; }
+  footer { text-align: center; color: rgba(148,163,184,.5); font-size: 11px; padding: 0 16px 24px; line-height: 1.9; }
 
   /* 高德 Key 引导卡片 */
   .key-guide { max-width: 1100px; margin: 0 auto; padding: 12px 20px 0; }
@@ -513,7 +524,10 @@
   </div>
 </div>
 
-<footer>地图数据 © OpenStreetMap ｜ 优先人行道、绿道、公园，避开机动车主干道</footer>
+<footer>
+  地图数据 © OpenStreetMap ｜ 优先人行道、绿道、公园，避开机动车主干道<br>
+  ⚠️ 路线仅供参考，户外跑步请注意交通安全，夜跑建议结伴出行并告知家人行程，请遵守当地交通规则与场地规定。本站不收集任何个人数据。
+</footer>
 
 <div id="posterModal" class="modal hidden" onclick="closePoster(event)">
   <div class="modal-card">
