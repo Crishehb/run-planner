@@ -309,7 +309,45 @@
     .saved-item { font-size: 11px; }
     .weather-box { font-size: 11px; padding: 8px 10px; }
     .wp-name { font-size: 13px; }
+    .fab { right: 12px; bottom: 16px; padding: 10px 14px; font-size: 12px; }
   }
+
+  /* 意见反馈：悬浮按钮 + 弹窗 */
+  .fab {
+    position: fixed; right: 16px; bottom: 22px; z-index: 990; border: none; border-radius: 999px;
+    padding: 11px 18px; font-size: 13px; font-weight: 700; cursor: pointer; color: #052e16;
+    background: linear-gradient(90deg, #22c55e, #16a34a);
+    box-shadow: 0 6px 20px rgba(34,197,94,.4); transition: transform .15s, box-shadow .15s;
+  }
+  .fab:hover { transform: translateY(-2px); box-shadow: 0 8px 26px rgba(34,197,94,.55); }
+  .fb-panel {
+    position: relative; max-width: 420px; width: 100%; background: var(--card);
+    border: 1px solid rgba(148,163,184,.2); border-radius: 16px; padding: 20px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.5); animation: fadeSlide .25s ease;
+  }
+  .fb-close {
+    position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; border-radius: 50%;
+    border: 1px solid rgba(148,163,184,.3); background: transparent; color: var(--text-dim);
+    font-size: 14px; cursor: pointer; transition: all .15s;
+  }
+  .fb-close:hover { color: var(--text); border-color: var(--accent); }
+  .fb-title { font-size: 16px; font-weight: 700; margin-bottom: 14px; }
+  .fb-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .fb-label { font-size: 12px; color: var(--text-dim); flex: none; }
+  #fbContent {
+    width: 100%; min-height: 96px; background: var(--card-light);
+    border: 1px solid rgba(148,163,184,.2); border-radius: 10px; color: var(--text);
+    padding: 10px 12px; font-size: 14px; font-family: inherit; outline: none; resize: vertical;
+  }
+  #fbContent:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(34,197,94,.15); }
+  .fb-btns { margin-top: 14px; }
+  .fb-btns .btn { width: 100%; margin-top: 0; }
+  .fb-result {
+    margin-top: 12px; font-size: 12px; line-height: 1.9; color: #bbf7d0;
+    background: rgba(74,222,128,.08); border: 1px solid rgba(74,222,128,.3);
+    border-radius: 10px; padding: 10px 12px;
+  }
+  .fb-result a { color: var(--accent); }
 </style>
 </head>
 <body>
@@ -485,6 +523,25 @@
       <button class="btn btn-ghost" onclick="document.getElementById('posterModal').classList.add('hidden')">关闭</button>
     </div>
     <div class="modal-tip">📱 手机上可长按图片保存，分享给跑友</div>
+  </div>
+</div>
+
+<button class="fab" onclick="openFeedback()">📮 反馈</button>
+
+<div id="feedbackModal" class="modal hidden" onclick="closeFeedback(event)">
+  <div class="fb-panel">
+    <button class="fb-close" onclick="closeFeedback(event, true)" title="关闭">✕</button>
+    <div class="fb-title">📮 意见与反馈</div>
+    <div class="fb-row">
+      <span class="fb-label">整体体验</span>
+      <span id="fbStars"></span>
+    </div>
+    <textarea id="fbContent" placeholder="想加什么功能？哪里不好用？路线哪里不满意？随便说～"></textarea>
+    <input type="text" id="fbContact" placeholder="联系方式（可选，方便回访）" style="margin-top:10px">
+    <div class="fb-btns">
+      <button class="btn btn-primary" onclick="submitFeedback()">🚀 提交反馈</button>
+    </div>
+    <div id="fbResult" class="fb-result hidden"></div>
   </div>
 </div>
 
@@ -1951,6 +2008,42 @@ async function drawPoster(r, withMap) {
 }
 function closePoster(e) {
   if (e.target.id === 'posterModal') document.getElementById('posterModal').classList.add('hidden');
+}
+
+/* ================= 意见反馈（悬浮按钮弹窗；记录到本机，可一键邮件发给开发者） ================= */
+let fbScore = 0;
+function renderFbStars() {
+  document.getElementById('fbStars').innerHTML = [1, 2, 3, 4, 5].map(n =>
+    `<span class="star ${n <= fbScore ? 'on' : ''}" onclick="setFbStar(${n})">★</span>`).join('');
+}
+function setFbStar(n) { fbScore = n; renderFbStars(); }
+function openFeedback() {
+  document.getElementById('feedbackModal').classList.remove('hidden');
+  document.getElementById('fbResult').classList.add('hidden');
+  renderFbStars();
+}
+function closeFeedback(e, force) {
+  if (force || e.target.id === 'feedbackModal') document.getElementById('feedbackModal').classList.add('hidden');
+}
+function submitFeedback() {
+  const content = document.getElementById('fbContent').value.trim();
+  const res = document.getElementById('fbResult');
+  if (!content) {
+    res.classList.remove('hidden');
+    res.innerHTML = '⚠️ 请先写点反馈内容再提交～';
+    return;
+  }
+  const contact = document.getElementById('fbContact').value.trim();
+  const item = { time: new Date().toLocaleString(), score: fbScore, content, contact };
+  try {
+    const list = JSON.parse(localStorage.getItem('feedbackList') || '[]');
+    list.unshift(item);
+    localStorage.setItem('feedbackList', JSON.stringify(list.slice(0, 50)));
+  } catch (e) { /* 存储失败不阻断提交提示 */ }
+  const body = encodeURIComponent(`体验评分：${fbScore} 星\n反馈内容：${content}\n联系方式：${contact || '未填写'}`);
+  const mail = `mailto:crhhbo@gmail.com?subject=${encodeURIComponent('跑步路线规划助手 · 用户反馈')}&body=${body}`;
+  res.classList.remove('hidden');
+  res.innerHTML = `✅ 反馈已记录，谢谢支持！<br>本工具无后台服务器，也可 <a href="${mail}">点此直接发邮件给开发者</a>（内容已自动填好）。`;
 }
 
 /* ================= 沿途补给点（高德 POI：便利店/超市/公厕，需 Key） ================= */
