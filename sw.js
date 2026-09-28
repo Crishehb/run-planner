@@ -1,5 +1,5 @@
 /* Service Worker：网络优先 + 缓存兜底（离线也能打开；地图瓦片等 CDN 资源顺带缓存加速） */
-const CACHE = 'run-planner-v1';
+const CACHE = 'run-planner-v2';
 
 self.addEventListener('install', e => {
   self.skipWaiting();
