@@ -359,14 +359,183 @@ window.addEventListener('DOMContentLoaded', function () {
     border-radius: 10px; padding: 10px 12px;
   }
   .fb-result a { color: var(--accent); }
+
+  /* ==================================================================
+     运动科技感视觉升级（深空底 + 荧光绿/青 + 玻璃拟态 + 发光动效）
+     后定义的同名变量/规则覆盖前面的基础样式
+     ================================================================== */
+  :root {
+    --primary: #34d399;
+    --primary-dark: #10b981;
+    --neon: #22ff88;
+    --neon-cyan: #22d3ee;
+    --bg: #070b16;
+    --card: rgba(19, 27, 45, .72);
+    --card-light: rgba(38, 50, 74, .6);
+    --text: #eaf2ff;
+    --text-dim: #93a4c3;
+    --accent: #22d3ee;
+    --warn: #fbbf24;
+    --glow: 0 0 24px rgba(34, 255, 136, .35);
+  }
+  body {
+    background:
+      radial-gradient(1200px 700px at 88% -12%, rgba(34, 211, 238, .16), transparent 58%),
+      radial-gradient(1000px 700px at -12% 112%, rgba(34, 255, 136, .13), transparent 55%),
+      radial-gradient(700px 500px at 50% 40%, rgba(99, 102, 241, .07), transparent 60%),
+      linear-gradient(165deg, #070b16 0%, #0d1426 55%, #071a17 150%);
+    background-attachment: fixed;
+  }
+  /* 顶部氛围光带 */
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background: linear-gradient(180deg, rgba(34, 255, 136, .05), transparent 240px);
+  }
+  header { position: relative; z-index: 1; padding: 34px 24px 10px; }
+  .brand-badge {
+    display: inline-flex; align-items: center; gap: 7px; font-size: 11px; letter-spacing: 2px;
+    color: var(--neon); background: rgba(34, 255, 136, .08); border: 1px solid rgba(34, 255, 136, .28);
+    padding: 5px 14px; border-radius: 999px; margin-bottom: 12px; text-transform: uppercase;
+    box-shadow: inset 0 0 18px rgba(34, 255, 136, .08);
+  }
+  .brand-badge .live { width: 6px; height: 6px; border-radius: 50%; background: var(--neon); box-shadow: 0 0 10px var(--neon); animation: livePulse 1.8s ease-in-out infinite; }
+  @keyframes livePulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.7); } }
+  header h1 {
+    font-size: 34px; font-weight: 800; letter-spacing: 1px;
+    background: linear-gradient(96deg, #34d399 0%, #22ff88 30%, #22d3ee 70%, #818cf8 100%);
+    background-size: 200% auto; -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: shine 7s linear infinite; text-shadow: 0 0 44px rgba(34, 255, 136, .22);
+  }
+  @keyframes shine { to { background-position: 200% center; } }
+  header .tagline { color: var(--text-dim); font-size: 13px; margin-top: 8px; letter-spacing: .4px; }
+  /* 差异化能力条 */
+  .feature-strip {
+    max-width: 1100px; margin: 4px auto 0; padding: 0 20px; position: relative; z-index: 1;
+    display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+  }
+  .feature-pill {
+    display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-dim);
+    background: rgba(30, 41, 59, .5); border: 1px solid rgba(148, 163, 184, .16);
+    padding: 7px 14px; border-radius: 999px; backdrop-filter: blur(8px); transition: all .25s;
+  }
+  .feature-pill:hover { color: var(--text); border-color: rgba(34, 255, 136, .45); box-shadow: 0 0 18px rgba(34, 255, 136, .14); transform: translateY(-2px); }
+  .feature-pill b { color: var(--neon); font-weight: 700; }
+
+  .card {
+    background: var(--card); backdrop-filter: blur(16px) saturate(140%);
+    border: 1px solid rgba(148, 163, 184, .14); border-radius: 20px;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .05);
+  }
+  .card h2 { font-size: 15px; font-weight: 700; letter-spacing: .6px; }
+  .card h2 .dot { box-shadow: 0 0 12px currentColor; }
+  .btn-primary {
+    background: linear-gradient(96deg, #22ff88 0%, #10b981 48%, #22d3ee 130%);
+    color: #04121a; box-shadow: 0 8px 26px rgba(34, 255, 136, .34);
+  }
+  .btn-primary:hover { box-shadow: 0 12px 34px rgba(34, 255, 136, .5); }
+  .chip.active { background: linear-gradient(96deg, var(--neon), var(--neon-cyan)); color: #04121a; border-color: transparent; box-shadow: 0 3px 16px rgba(34, 211, 238, .4); }
+  .stat { background: var(--card-light); border: 1px solid rgba(148, 163, 184, .1); }
+  .stat:hover { border-color: rgba(34, 255, 136, .45); box-shadow: 0 6px 20px rgba(34, 255, 136, .12); }
+  .stat .v { color: var(--neon); text-shadow: 0 0 16px rgba(34, 255, 136, .35); }
+
+  /* ---------- 地图：荧光路线 + 流动方向 + 公里里程碑 + 起点脉冲 ---------- */
+  #mapBox { border: 1px solid rgba(148, 163, 184, .16); box-shadow: inset 0 0 60px rgba(0, 0, 0, .5); }
+  /* Leaflet SVG 路线：动画流动虚线（方向指引），叠加在实线之上 */
+  .route-flow { animation: routeDash 1.1s linear infinite; }
+  @keyframes routeDash { to { stroke-dashoffset: -28; } }
+  .leaflet-container { background: #070b16; }
+  /* 暗色弹窗，贴合科技感主题 */
+  .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+    background: rgba(13, 20, 38, .95); color: var(--text);
+    border: 1px solid rgba(34, 255, 136, .3); box-shadow: 0 8px 30px rgba(0, 0, 0, .6);
+  }
+  .leaflet-popup-content { font-size: 12px; line-height: 1.6; }
+  /* 公里里程碑气泡 */
+  .km-pin {
+    display: flex; align-items: center; justify-content: center;
+    min-width: 30px; height: 22px; padding: 0 7px; border-radius: 11px;
+    background: linear-gradient(96deg, rgba(34, 255, 136, .95), rgba(34, 211, 238, .95));
+    color: #04121a; font-weight: 800; font-size: 11px; white-space: nowrap;
+    border: 1.5px solid rgba(255, 255, 255, .85); box-shadow: 0 3px 12px rgba(0, 0, 0, .55), 0 0 16px rgba(34, 255, 136, .4);
+  }
+  .km-pin.turn { background: linear-gradient(96deg, #fbbf24, #f97316); box-shadow: 0 3px 12px rgba(0, 0, 0, .55), 0 0 16px rgba(251, 191, 36, .45); }
+  /* 起点脉冲标记 */
+  .start-pulse { position: relative; width: 34px; height: 34px; }
+  .start-pulse .core {
+    position: absolute; inset: 7px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #7dd3fc, #0ea5e9);
+    border: 2px solid #fff; box-shadow: 0 2px 10px rgba(0, 0, 0, .6); z-index: 2;
+  }
+  .start-pulse .ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid rgba(34, 211, 238, .8); animation: startRing 2s ease-out infinite; }
+  @keyframes startRing { 0% { transform: scale(.5); opacity: .9; } 100% { transform: scale(1.7); opacity: 0; } }
+  /* 方向箭头 */
+  .dir-arrow { color: #eafff4; font-size: 13px; text-shadow: 0 0 6px rgba(34, 255, 136, .9), 0 1px 3px rgba(0, 0, 0, .9); }
+
+  /* ---------- 分析面板（环线纯净度 / 少红灯 / 路面环境） ---------- */
+  .analysis-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+  @media (max-width: 560px) { .analysis-grid { grid-template-columns: 1fr; } }
+  .ana-card {
+    background: var(--card-light); border: 1px solid rgba(148, 163, 184, .14);
+    border-radius: 14px; padding: 12px 14px; transition: all .2s;
+  }
+  .ana-card:hover { border-color: rgba(34, 211, 238, .4); transform: translateY(-2px); }
+  .ana-k { font-size: 11px; color: var(--text-dim); display: flex; align-items: center; gap: 6px; }
+  .ana-v { font-size: 20px; font-weight: 800; color: var(--neon); margin: 5px 0 3px; font-variant-numeric: tabular-nums; }
+  .ana-v.cy { color: var(--neon-cyan); }
+  .ana-v.wa { color: var(--warn); }
+  .ana-d { font-size: 11px; color: var(--text-dim); line-height: 1.5; }
+  .meter { height: 6px; border-radius: 4px; background: rgba(148, 163, 184, .18); overflow: hidden; margin-top: 8px; }
+  .meter > i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--neon), var(--neon-cyan)); box-shadow: 0 0 12px rgba(34, 255, 136, .5); }
+  .surface-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .surface-tag { font-size: 11px; padding: 3px 10px; border-radius: 999px; border: 1px solid rgba(148, 163, 184, .2); color: var(--text-dim); background: rgba(148, 163, 184, .06); }
+  .surface-tag.top { color: #04121a; background: linear-gradient(96deg, var(--neon), var(--neon-cyan)); border-color: transparent; font-weight: 700; }
+
+  /* ---------- 分段配速表 ---------- */
+  .split-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .split-table th { text-align: left; color: var(--text-dim); font-weight: 600; font-size: 11px; padding: 8px 10px; border-bottom: 1px solid rgba(148, 163, 184, .2); letter-spacing: .5px; }
+  .split-table td { padding: 10px; border-bottom: 1px dashed rgba(148, 163, 184, .12); font-variant-numeric: tabular-nums; }
+  .split-table tr:hover td { background: rgba(34, 255, 136, .05); }
+  .split-km { font-weight: 800; color: var(--neon); }
+  .split-cum { color: var(--text-dim); }
+  .split-clock { color: var(--neon-cyan); }
+  .split-bar { height: 5px; border-radius: 3px; background: rgba(148, 163, 184, .16); overflow: hidden; min-width: 40px; }
+  .split-bar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--neon), var(--neon-cyan)); }
+  .split-tip { font-size: 12px; color: var(--text-dim); line-height: 1.8; margin-bottom: 12px; }
+
+  .compare-card { background: var(--card-light); border-radius: 14px; }
+  .compare-card.active { border-color: var(--neon); box-shadow: 0 0 0 1px rgba(34, 255, 136, .3), 0 8px 24px rgba(34, 255, 136, .12); }
+
+  /* ---------- 新增组件的手机端收敛（置于最后以覆盖上方大屏规则） ---------- */
+  @media (max-width: 640px) {
+    header { padding: 20px 14px 6px; }
+    header h1 { font-size: 23px; }
+    header .tagline { font-size: 12px; }
+    .brand-badge { font-size: 10px; padding: 4px 11px; letter-spacing: 1px; }
+    .feature-strip { padding: 0 12px; gap: 7px; }
+    .feature-pill { font-size: 11px; padding: 5px 11px; }
+    .analysis-grid { gap: 8px; }
+    .ana-v { font-size: 17px; }
+    .split-table { font-size: 12px; }
+    .split-table td, .split-table th { padding: 7px 6px; }
+    .km-pin { min-width: 26px; height: 19px; font-size: 10px; }
+  }
 </style>
 </head>
 <body>
 
 <header>
+  <div class="brand-badge"><span class="live"></span>RUNNER · 智能路线引擎</div>
   <h1>🏃 跑步路线规划助手</h1>
-  <p>真实地图 · 多候选地点 · 环形 / 往返路线 · 每 200 米一个途经点</p>
+  <p class="tagline">真实步行路网 · 环形/往返一键闭环 · 为跑者而生的每一公里</p>
 </header>
+
+<div class="feature-strip">
+  <span class="feature-pill">⏱ <b>每公里分段配速</b>·配速兔子</span>
+  <span class="feature-pill">🔄 <b>环线纯净度</b>·拒绝原路折返</span>
+  <span class="feature-pill">🚦 <b>少红灯</b>·转弯路口计数</span>
+  <span class="feature-pill">🌿 <b>路面环境</b>·公园绿道识别</span>
+  <span class="feature-pill">🚻 <b>沿途补给</b>·公厕便利店</span>
+</div>
 
 <div class="quote-bar"><span id="quoteText"></span></div>
 
@@ -439,7 +608,7 @@ window.addEventListener('DOMContentLoaded', function () {
     <label>输出形式</label>
     <div class="seg" id="outSeg">
       <button class="active" data-mode="map">路线图</button>
-      <button data-mode="list">途径地点清单</button>
+      <button data-mode="list">里程碑清单</button>
     </div>
 
     <button class="btn btn-primary" id="planBtn" onclick="planRoute()">✨ 开始规划路线</button>
@@ -459,21 +628,31 @@ window.addEventListener('DOMContentLoaded', function () {
         <div class="stat"><div class="v" id="statDist">-</div><div class="k">总距离 (km)</div></div>
         <div class="stat"><div class="v" id="statTime">-</div><div class="k">预计耗时</div></div>
         <div class="stat"><div class="v" id="statPace">-</div><div class="k">配速 (min/km)</div></div>
-        <div class="stat"><div class="v" id="statWp">-</div><div class="k">途经点</div></div>
+        <div class="stat"><div class="v" id="statWp">-</div><div class="k">里程碑</div></div>
         <div class="stat" id="statKcalBox"><div class="v" id="statKcal">-</div><div class="k">预计消耗 (kcal)</div></div>
       </div>
       <div class="road-line" id="roadLine"></div>
+
+      <div class="analysis-grid" id="analysisBox"></div>
 
       <div class="toggle-bar" id="routeBar"></div>
 
       <div class="toggle-bar">
         <button class="chip active" id="chipMap" onclick="switchView('map')">🗺️ 路线图（可缩放/拖动）</button>
-        <button class="chip" id="chipList" onclick="switchView('list')">📋 途径地点清单</button>
+        <button class="chip" id="chipSplit" onclick="switchView('split')">⏱ 分段配速</button>
+        <button class="chip" id="chipList" onclick="switchView('list')">📋 里程碑清单</button>
         <button class="chip" id="chipNav" onclick="switchView('nav')">🧭 转向指引</button>
         <button class="chip" id="chipCompare" onclick="switchView('compare')">📊 路线对比</button>
       </div>
 
       <div id="mapBox"><div id="realMap"></div></div>
+
+      <div id="splitBox" class="hidden">
+        <div class="split-tip" id="splitTip"></div>
+        <table class="split-table"><thead><tr>
+          <th>公里</th><th>分段用时</th><th>累计</th><th>时刻</th><th style="width:70px">进度</th>
+        </tr></thead><tbody id="splitBody"></tbody></table>
+      </div>
 
       <div id="listBox" class="hidden">
         <ul class="waypoint-list" id="waypointList"></ul>
@@ -624,11 +803,8 @@ function initMap() {
 function startIcon() {
   return L.divIcon({
     className: '',
-    html: `<div style="width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);
-      background:#38bdf8;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.6);
-      display:flex;align-items:center;justify-content:center">
-      <span style="transform:rotate(45deg);color:#082f49;font-weight:700;font-size:13px">起</span></div>`,
-    iconSize: [30, 30], iconAnchor: [15, 30]
+    html: `<div class="start-pulse"><span class="ring"></span><span class="core" style="display:flex;align-items:center;justify-content:center;color:#082f49;font-weight:800;font-size:12px">起</span></div>`,
+    iconSize: [34, 34], iconAnchor: [17, 17]
   });
 }
 
@@ -1106,30 +1282,30 @@ async function routeBetween(oLat, oLng, dLat, dLng) {
       amapFailed = true;
     } catch (e) { amapFailed = true; /* 降级 */ }
   }
-  // 2) OSRM 公共路网（无需 Key，沿真实道路，境外服务可能较慢）
-  let osrmFailed = false;
+  // 2) FOSSGIS 步行路网（OSM 公共实例，人行道/绿道/步行道，跑者最适用）
+  let footFailed = false;
+  try {
+    const d = await fetchJson(
+      `https://routing.openstreetmap.de/routed-foot/route/v1/driving/${oLng.toFixed(6)},${oLat.toFixed(6)};${dLng.toFixed(6)},${dLat.toFixed(6)}?overview=full&geometries=geojson`,
+      9000);
+    if (d.routes && d.routes.length) {
+      const pts = d.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+      return { points: pts, engine: 'foot', distance: d.routes[0].distance };
+    }
+    footFailed = true;
+  } catch (e) { footFailed = true; }
+  // 3) OSRM 机动车路网（最后兜底：会经过机动车道，标记 engine='car' 以便提示跑者注意安全）
   try {
     const d = await fetchJson(
       `https://router.project-osrm.org/route/v1/driving/${oLng.toFixed(6)},${oLat.toFixed(6)};${dLng.toFixed(6)},${dLat.toFixed(6)}?overview=full&geometries=geojson`,
       8000);
     if (d.routes && d.routes.length) {
       const pts = d.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
-      return { points: pts, engine: 'osrm', distance: d.routes[0].distance };
-    }
-    osrmFailed = true;
-  } catch (e) { osrmFailed = true; }
-  // 3) FOSSGIS 步行路网（OSM 公共实例，人行道/步行道路网）
-  try {
-    const d = await fetchJson(
-      `https://routing.openstreetmap.de/routed-foot/route/v1/driving/${oLng.toFixed(6)},${oLat.toFixed(6)};${dLng.toFixed(6)},${dLat.toFixed(6)}?overview=full&geometries=geojson`,
-      8000);
-    if (d.routes && d.routes.length) {
-      const pts = d.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
-      return { points: pts, engine: 'osrm', distance: d.routes[0].distance };
+      return { points: pts, engine: 'car', distance: d.routes[0].distance };
     }
   } catch (e) {
     // 所有引擎都不可用 → 后续调用快速失败，不再等待超时
-    if (amapFailed && osrmFailed) routingEnginesDead = true;
+    if (amapFailed && footFailed) routingEnginesDead = true;
   }
   return null;
 }
@@ -1164,37 +1340,55 @@ function haversine(a, b) {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-/* 沿实际路径按等距布设途径点（约每公里一个） */
+/* 沿实际路径按「每公里里程碑」布点，并自动合并重复位置（去/返经过同一地点时合并为一个） */
 function sampleAlongPath(pts, startName, endName, shape) {
   const cum = [0];
   for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + haversine(pts[i - 1], pts[i]));
-  const total = cum[cum.length - 1];
-  // 每约 200 米一个标记点，上限 80 个（超长路线自动加大间隔）
-  const interval = Math.max(0.2, total / 80);
-  const n = Math.max(2, Math.min(80, Math.round(total / interval)));
-  const waypoints = [];
-  for (let k = 0; k <= n; k++) {
-    const target = total * k / n;
+  const total = cum[cum.length - 1] || 0;
+  // 取路径上里程为 target(km) 处的坐标（线性插值）
+  const atDist = target => {
     let i = 1;
     while (i < cum.length - 1 && cum[i] < target) i++;
     const seg = (cum[i] - cum[i - 1]) || 1e-9;
     const t = Math.max(0, Math.min(1, (target - cum[i - 1]) / seg));
-    const lat = pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * t;
-    const lng = pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * t;
-    let name;
-    if (k === 0) name = startName;
-    else if (k === n) name = endName;
-    else if (shape === 'return' && k === Math.round(n / 2)) name = `折返点`;
-    else name = `途经点 ${k}`;
-    waypoints.push({
-      name,
-      type: k === 0 ? 'start' : (k === n ? 'end' : 'wp'),
-      km: target,
-      road: '实际道路',
-      latlng: [lat, lng]
-    });
+    return [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * t,
+            pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * t];
+  };
+  const isReturn = shape === 'return';
+  const halfKm = total / 2;
+  const wps = [{ name: startName, type: 'start', km: 0, road: '出发点', latlng: pts[0], leg: 'out' }];
+
+  // 收集所有里程碑（整公里点 + 往返时的折返点）
+  const marks = [];
+  const nKm = Math.floor(total + 1e-6);
+  for (let k = 1; k <= nKm; k++) {
+    marks.push({ km: k, latlng: atDist(k), leg: isReturn ? (k <= Math.floor(halfKm) ? 'out' : 'back') : 'out' });
   }
-  return waypoints;
+  if (isReturn && total > 0.4) marks.push({ km: halfKm, latlng: atDist(halfKm), leg: 'turn', turn: true });
+  marks.sort((a, b) => a.km - b.km);
+
+  // 合并重复：40 米内视为同一地点（环线去/回经过同一点、往返去/回镜像点）
+  marks.forEach(m => {
+    if (m.turn) {
+      wps.push({ name: '🔄 折返点', type: 'turn', km: m.km, road: '掉头返回', latlng: m.latlng, leg: 'turn' });
+      return;
+    }
+    const dupIdx = wps.findIndex(w => w.type === 'wp' && haversine(w.latlng, m.latlng) < 0.04);
+    if (dupIdx >= 0) {
+      const w = wps[dupIdx];
+      if (!w.merged) { w.name = `${w.km} km · 去返同点`; w.merged = true; }
+      return;
+    }
+    const label = isReturn ? `${m.km} km · ${m.leg === 'out' ? '去程' : '回程'}` : `${m.km} km`;
+    wps.push({
+      name: label, type: 'wp', km: m.km,
+      road: isReturn ? (m.leg === 'out' ? '去程道路' : '回程道路') : '实际道路',
+      latlng: m.latlng, leg: m.leg
+    });
+  });
+
+  wps.push({ name: endName, type: 'end', km: total, road: '返回起点', latlng: pts[pts.length - 1], leg: 'end' });
+  return wps;
 }
 
 /* 无路网可用时的模拟环线兜底 */
@@ -1280,6 +1474,65 @@ function routePenalty(navSteps) {
   return total ? pen / total : 0;
 }
 
+/* 环线纯净度：回程路径中有多少比例与去程重叠（0=完全原路折返，1=完全不相交的真环线） */
+function computePurity(outPts, backPts) {
+  if (!backPts || !backPts.length) return 0; // 原路折返（无独立回程）
+  const step = Math.max(1, Math.floor(backPts.length / 60));
+  let overlap = 0, n = 0;
+  for (let i = 0; i < backPts.length; i += step) {
+    n++;
+    let best = Infinity;
+    for (let j = 0; j < outPts.length; j++) {
+      const d = haversine(backPts[i], outPts[j]);
+      if (d < best) best = d;
+      if (best < 0.03) break;
+    }
+    if (best < 0.03) overlap++;
+  }
+  return n ? 1 - overlap / n : 0;
+}
+
+/* 转弯/路口计数（近似红绿灯数量）：带明确转向动作的导航段 */
+function countTurns(navSteps) {
+  if (!navSteps || !navSteps.length) return null;
+  let t = 0;
+  navSteps.forEach(s => {
+    const a = s.action || '';
+    const ins = s.instruction || '';
+    if (/左转|右转|向左|向右|掉头|左后|右后/.test(a) || /左转|右转|掉头/.test(ins)) t++;
+  });
+  return t;
+}
+
+/* 路面环境分类：按路段名称归类，统计各类占比（公园绿道/滨水/城市街道/巷道小区） */
+const SURFACE_RULES = [
+  { key: 'park', name: '🌳 公园绿道', re: /公园|绿道|绿地|湿地|森林|步道|花园|广场|体育|运动|健身|植物/ },
+  { key: 'water', name: '🌊 滨水步道', re: /江|河|湖|滨|堤|湾|溪|海|水库|渠|沿河|沿江/ },
+  { key: 'alley', name: '🏘 巷道小区', re: /巷|弄|径|里|坊|小区|院内|宿舍|家属院|公寓|新村|组团|内街|后街/ },
+  { key: 'street', name: '🏙 城市街道', re: /路|街|道|大道|大街/ }
+];
+function classifySurface(navSteps) {
+  const dist = { park: 0, water: 0, alley: 0, street: 0, unknown: 0 };
+  let named = false;
+  if (navSteps && navSteps.length) {
+    navSteps.forEach(s => {
+      const road = s.road || '';
+      const d = s.distance || 0;
+      if (!road) { dist.unknown += d; return; }
+      named = true;
+      let hit = false;
+      for (const rule of SURFACE_RULES) {
+        if (rule.re.test(road)) { dist[rule.key] += d; hit = true; break; }
+      }
+      if (!hit) dist.street += d; // 有路名但未命中特征，归为普通城市街道
+    });
+  }
+  const total = Object.values(dist).reduce((a, b) => a + b, 0) || 1;
+  const tags = SURFACE_RULES.map(r => ({ name: r.name, pct: dist[r.key] / total }))
+    .filter(t => t.pct >= 0.03).sort((a, b) => b.pct - a.pct);
+  return { tags, named, greenRatio: (dist.park + dist.water) / total };
+}
+
 /* ================= 核心：规划路线（环形 3 条 / 点选折返目标 → 往返 1 条） ================= */
 async function planRoute() {
   const planBtn = document.getElementById('planBtn');
@@ -1331,23 +1584,24 @@ async function planRoute() {
     // 强制闭环回起点，避免起终点分离
     const last = path[path.length - 1];
     if (Math.abs(last[0] - sLat) > 1e-6 || Math.abs(last[1] - sLng) > 1e-6) path.push([sLat, sLng]);
-    collected.push({ points: path, engine: r ? r.engine : null, navSteps: r ? r.navSteps : null, viaName: endName || null });
+    collected.push({ points: path, engine: r ? r.engine : null, navSteps: r ? r.navSteps : null, viaName: endName || null, purity: 0 });
   } else {
     // 环形：智能选向 —— 有高德 Key 时优先朝附近公园/广场（照明好）；否则随机方向；连续失败快速退出
-    const half = targetKm / 2;
+    // 环线单程腿长（直线）：真实路网绕行系数~1.35、三角形周长~2.35×腿长，故取目标距离的 ~0.315 使总长贴合目标（首条路线后再自适应校正）
+    let loopLeg = Math.max(0.5, targetKm * 0.315);
     let poiDests = [];
     if (amapKey()) {
       hint.textContent = '正在搜索附近公园与广场，智能选择路线方向…';
       const radius = Math.min(5000, Math.max(1000, Math.round(targetKm * 500 * 1.6)));
       const parks = await fetchNearbyParks(sLat, sLng, radius);
-      // 优选离起点约为目标一半距离的公园（环线总长≈目标距离）
+      // 优选离起点约为腿长的公园（环线总长≈目标距离）
       poiDests = parks
         .map(p => ({ ...p, d: haversine([sLat, sLng], [p.lat, p.lng]) }))
-        .filter(p => p.d > half * 0.3 && p.d < Math.max(half * 1.6, 1.2))
-        .sort((a, b) => Math.abs(a.d - half) - Math.abs(b.d - half))
+        .filter(p => p.d > loopLeg * 0.4 && p.d < Math.max(loopLeg * 1.7, 1.0))
+        .sort((a, b) => Math.abs(a.d - loopLeg) - Math.abs(b.d - loopLeg))
         .slice(0, 5);
     }
-    let attempts = 0, missStreak = 0, poiIdx = 0;
+    let attempts = 0, missStreak = 0, poiIdx = 0, calibrated = false;
     const wantCount = amapKey() ? 6 : 3; // 有 Key 时广撒网多收候选，随后按巷道占比优选前 3（大幅降低穿行小区的概率）
     while (collected.length < wantCount && attempts < 14) {
       attempts++;
@@ -1358,8 +1612,8 @@ async function planRoute() {
       } else {
         const bearing = rnd(0, 2 * Math.PI);
         dest = [
-          sLat + Math.cos(bearing) * half / 111,
-          sLng + Math.sin(bearing) * half / (111 * Math.cos(sLat * Math.PI / 180))
+          sLat + Math.cos(bearing) * loopLeg / 111,
+          sLng + Math.sin(bearing) * loopLeg / (111 * Math.cos(sLat * Math.PI / 180))
         ];
       }
       hint.textContent = `正在沿真实路网生成环形路线${viaName ? '（途经 ' + viaName + '）' : ''}（已得到 ${collected.length} 条）…`;
@@ -1370,9 +1624,35 @@ async function planRoute() {
         continue;
       }
       missStreak = 0;
-      const back = await routeBetween(dest[0], dest[1], sLat, sLng);
+      // 回程经由一个「垂直偏移中途点」，强制走与去程不同的街道，形成真正的环线（而非原路折返）
+      const midLat = (sLat + dest[0]) / 2, midLng = (sLng + dest[1]) / 2;
+      const dLat0 = dest[0] - sLat, dLng0 = dest[1] - sLng;
+      const via = [midLat - dLng0 * 0.45, midLng + dLat0 * 0.45]; // 将起→终向量旋转90°作为偏移方向
+      const back1 = await routeBetween(dest[0], dest[1], via[0], via[1]);
+      const back2 = back1 ? await routeBetween(via[0], via[1], sLat, sLng) : null;
+      let back;
+      if (back1 && back2) {
+        back = {
+          engine: back1.engine,
+          points: back1.points.concat(back2.points.slice(1)),
+          navSteps: (back1.navSteps || []).concat(back2.navSteps || [])
+        };
+        if (!back.navSteps.length) back.navSteps = null;
+      } else {
+        // 偏移中途点不可达时，退回直接规划回程（仍优于完全原路折返）
+        back = await routeBetween(dest[0], dest[1], sLat, sLng);
+      }
       const path = back ? r.points.concat(back.points.slice(1))
                         : r.points.concat(r.points.slice(0, -1).reverse());
+      // 首条路线用于实测「直线距离→真实路网距离」绕行系数，据此校正腿长，使后续路线总长更贴合目标
+      if (!calibrated) {
+        calibrated = true;
+        let actualKm = 0;
+        for (let i = 1; i < path.length; i++) actualKm += haversine(path[i - 1], path[i]);
+        const dStraight = haversine([sLat, sLng], [dest[0], dest[1]]) || 0.5;
+        const roadFactor = actualKm / (2.35 * dStraight);
+        if (roadFactor > 0.6 && roadFactor < 3) loopLeg = Math.min(targetKm * 0.6, Math.max(0.4, targetKm / (2.35 * roadFactor)));
+      }
       // 转向指引：去程步骤 + （回程步骤或原路返回提示）
       let navSteps = r.navSteps || null;
       if (navSteps) {
@@ -1384,11 +1664,11 @@ async function planRoute() {
       if (Math.abs(last[0] - sLat) > 1e-6 || Math.abs(last[1] - sLng) > 1e-6) {
         path.push([sLat, sLng]);
       }
-      collected.push({ points: path, engine: r.engine, navSteps, viaName });
+      collected.push({ points: path, engine: r.engine, navSteps, viaName, purity: computePurity(r.points, back ? back.points : null) });
     }
     // 主干道优先：按巷道占比评分排序（最干净的路线排最前），超过 3 条时只保留最优的 3 条，降低穿行小区内部的概率
     if (amapKey() && collected.length > 1) {
-      collected.forEach(c => c.penalty = routePenalty(c.navSteps));
+      collected.forEach(c => c.penalty = c.engine === 'amap' ? routePenalty(c.navSteps) : 0.3); // 非高德引擎（无逐段路名）给中性罚分，避免因“罚分0”被误排到最优
       collected.sort((a, b) => a.penalty - b.penalty);
       collected.length = Math.min(collected.length, 3);
     }
@@ -1411,7 +1691,8 @@ async function planRoute() {
       return {
         waypoints: c.sim.waypoints, fullPath: c.sim.fullPath, totalKm: c.sim.totalKm,
         totalMin: c.sim.totalKm * pace, pace, safe, road: '模拟路径', note: simNote,
-        navSteps: null, viaName: null, safeTag: false
+        navSteps: null, viaName: null, safeTag: false,
+        analysis: { purity: 0, turns: null, surface: { tags: [], named: false, greenRatio: 0 }, isReturn: hasTarget, isSim: true, engine: null }
       };
     }
     const waypoints = sampleAlongPath(c.points, location, endLabel, hasTarget ? 'return' : 'loop');
@@ -1429,16 +1710,30 @@ async function planRoute() {
     if (c.engine === 'amap' && pen > 0.35) {
       note = (note || '') + '\n⚠️ 此路线无名巷道占比偏高，可能经过小区内部道路，建议切换其他路线。';
     }
+    if (c.engine === 'car') {
+      note = (note || '') + '\n⚠️ 未接入步行路网，此路线沿机动车道规划，可能包含不适合跑步进入的路段，请靠路边注意安全（填入高德 Key 可切换为真实人行道）。';
+    }
+    const roadLabel = c.engine === 'amap' ? (pen <= 0.18 ? '真实步行路网 · 主干道优先' : '真实步行路网')
+      : c.engine === 'foot' ? '真实步行路网（OSM）'
+      : c.engine === 'car' ? '机动车道路网 · 需注意安全' : '模拟路径';
     return {
       waypoints, fullPath: c.points, totalKm,
-      totalMin: totalKm * pace, pace, safe,
-      road: c.engine === 'amap' ? (pen <= 0.18 ? '真实步行路网 · 主干道优先' : '真实步行路网') : (c.engine ? '真实道路网' : '模拟路径'), note,
-      navSteps: c.navSteps || null, viaName: c.viaName || null, safeTag
+      totalMin: totalKm * pace, pace, safe, road: roadLabel, note,
+      navSteps: c.navSteps || null, viaName: c.viaName || null, safeTag,
+      analysis: {
+        purity: hasTarget ? 0 : (c.purity || 0),
+        turns: countTurns(c.navSteps),
+        surface: classifySurface(c.navSteps),
+        isReturn: hasTarget, isSim: false, engine: c.engine
+      }
     };
   });
 
   renderResult();
   addSupplyPoints(); // 后台标注沿途补给点（有高德 Key 时生效，不阻塞规划）
+  // 清除“正在生成…”残留文案，给出成功提示 + 找路引导
+  hint.classList.add('ok');
+  hint.textContent = `✅ 已生成 ${currentRoutes.length} 条路线（默认展示路线1，可点上方按钮切换）。地图上荧光绿线+流动箭头即跑步方向，气泡为每公里里程碑。`;
   planBtn.disabled = false;
   planBtn.textContent = '✨ 重新生成路线';
 }
@@ -1484,23 +1779,126 @@ function selectRoute(i) {
   drawOnMap(r);
   drawList(r);
   renderNav(r);
+  renderAnalysis(r);
+  renderSplits(r);
   switchView(outMode);
   if (outMode === 'compare') renderCompare();
 }
 
 function switchView(mode) {
   outMode = mode;
-  ['Map', 'List', 'Nav', 'Compare'].forEach(m => {
+  ['Map', 'Split', 'List', 'Nav', 'Compare'].forEach(m => {
     const chip = document.getElementById('chip' + m);
     if (chip) chip.classList.toggle('active', m.toLowerCase() === mode);
   });
   document.getElementById('mapBox').classList.toggle('hidden', mode !== 'map');
+  document.getElementById('splitBox').classList.toggle('hidden', mode !== 'split');
   document.getElementById('listBox').classList.toggle('hidden', mode !== 'list');
   document.getElementById('navBox').classList.toggle('hidden', mode !== 'nav');
   document.getElementById('compareBox').classList.toggle('hidden', mode !== 'compare');
   // 从隐藏切回地图时重算尺寸，并按路线长短自适应最佳视野
   if (mode === 'map' && map) setTimeout(() => { map.invalidateSize(); fitRoute(); }, 80);
   if (mode === 'compare') renderCompare();
+}
+
+/* ================= 分析面板：环线纯净度 / 少红灯 / 路面环境 ================= */
+function renderAnalysis(r) {
+  const box = document.getElementById('analysisBox');
+  if (!r || !r.analysis) { box.innerHTML = ''; box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  const a = r.analysis;
+
+  // —— 环线纯净度 ——
+  let purV, purCls = '', purDesc, purPct = 0;
+  if (a.isReturn) {
+    purV = '往返'; purDesc = '点选折返目标生成，去程原路返回（非环线）';
+  } else if (a.isSim) {
+    purV = '—'; purDesc = '模拟路线，未接入真实路网，无法评估环线度';
+  } else {
+    purPct = Math.round(a.purity * 100);
+    purV = purPct + '%';
+    purCls = purPct >= 70 ? '' : purPct >= 40 ? 'cy' : 'wa';
+    purDesc = purPct >= 70 ? '接近完整环线，几乎不走回头路 👍' : purPct >= 40 ? '环线为主，含少量折返路段' : '折返较多，可试试切换其他路线';
+  }
+
+  // —— 少红灯（转弯路口计数） ——
+  let turnV, turnCls = '', turnDesc;
+  if (a.turns == null) {
+    turnV = '—'; turnDesc = '转弯路口数需接入高德步行路网（填入 Key）后显示';
+  } else {
+    turnV = a.turns + ' 处';
+    turnCls = a.turns <= 4 ? '' : a.turns <= 8 ? 'cy' : 'wa';
+    turnDesc = a.turns <= 4 ? '路口极少，连贯不用反复等灯 👍' : a.turns <= 8 ? '路口适中，配速较连贯' : '路口较多，可能频繁减速等灯';
+  }
+
+  // —— 路面环境 ——
+  const surf = a.surface || { tags: [], named: false, greenRatio: 0 };
+  let greenV, greenCls = '', greenDesc, tagsHtml;
+  if (a.isSim) {
+    greenV = '—'; greenDesc = '模拟路线，无真实路面数据';
+    tagsHtml = '<span class="surface-tag">模拟路径</span>';
+  } else if (!surf.named) {
+    greenV = '—'; greenDesc = '当前路网无逐段路名，接入高德 Key 可识别公园/绿道';
+    tagsHtml = `<span class="surface-tag">${a.engine === 'car' ? '城市道路' : '城市人行道'}</span>`;
+  } else {
+    const g = Math.round(surf.greenRatio * 100);
+    greenV = g + '%'; greenCls = g >= 50 ? '' : g >= 25 ? 'cy' : 'wa';
+    greenDesc = '公园绿道/滨水占比，越高越惬意安全';
+    tagsHtml = surf.tags.map((t, i) =>
+      `<span class="surface-tag${i === 0 ? ' top' : ''}">${t.name} ${Math.round(t.pct * 100)}%</span>`).join('');
+  }
+
+  box.innerHTML = `
+    <div class="ana-card">
+      <div class="ana-k">🔄 环线纯净度</div>
+      <div class="ana-v ${purCls}">${purV}</div>
+      <div class="ana-d">${purDesc}</div>
+      <div class="meter"><i style="width:${a.isReturn || a.isSim ? 0 : purPct}%"></i></div>
+    </div>
+    <div class="ana-card">
+      <div class="ana-k">🚦 转弯路口（近似红灯）</div>
+      <div class="ana-v ${turnCls}">${turnV}</div>
+      <div class="ana-d">${turnDesc}</div>
+    </div>
+    <div class="ana-card">
+      <div class="ana-k">🌿 绿化路面占比</div>
+      <div class="ana-v ${greenCls}">${greenV}</div>
+      <div class="ana-d">${greenDesc}</div>
+      <div class="surface-tags">${tagsHtml}</div>
+    </div>`;
+}
+
+/* ================= 分段配速表（配速兔子 + 预计到达时刻） ================= */
+function fmtSplit(min) {
+  const s = Math.round(min * 60);
+  return `${Math.floor(s / 60)}'${String(s % 60).padStart(2, '0')}"`;
+}
+function fmtClock(minFromNow) {
+  const d = new Date(Date.now() + minFromNow * 60000);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+function renderSplits(r) {
+  const body = document.getElementById('splitBody');
+  const tip = document.getElementById('splitTip');
+  if (!r || !body) return;
+  const pace = r.pace, total = r.totalKm;
+  tip.innerHTML = `🐇 <b style="color:var(--neon)">配速兔子</b>：按 <b>${pace.toFixed(1)} min/km</b> 匀速前进，每公里目标用时 <b>${fmtSplit(pace)}</b>。「时刻」列为从此刻起跑的预计到达时间，可用于对表打卡。`;
+  const whole = Math.floor(total + 1e-6);
+  const rows = [];
+  for (let k = 1; k <= whole; k++) rows.push({ label: `${k} km`, km: k, segKm: 1 });
+  if (total - whole > 0.05) rows.push({ label: `${total.toFixed(2)} km · 终点`, km: total, segKm: total - whole, fin: true });
+  if (!rows.length) rows.push({ label: `${total.toFixed(2)} km · 终点`, km: total, segKm: total, fin: true });
+  body.innerHTML = rows.map(row => {
+    const segMin = pace * row.segKm, cumMin = pace * row.km;
+    const pct = Math.min(100, row.km / total * 100);
+    return `<tr>
+      <td class="split-km">${row.label}</td>
+      <td>${fmtSplit(segMin)}</td>
+      <td class="split-cum">${fmtSplit(cumMin)}</td>
+      <td class="split-clock">${fmtClock(cumMin)}</td>
+      <td><div class="split-bar"><i style="width:${pct}%"></i></div></td>
+    </tr>`;
+  }).join('');
 }
 
 /* ================= 转向指引视图（需高德 Key 接入路网后才有逐段数据） ================= */
@@ -1571,11 +1969,17 @@ function renderCompare() {
       const vals = ['light', 'road', 'crowd'].map(d => rv[d] || 0).filter(v => v);
       if (vals.length) rvTxt = ` ｜ 📝 ${(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1)}★`;
     }
+    const a = r.analysis || {};
+    const pur = a.isReturn ? '往返' : a.isSim ? '模拟' : Math.round((a.purity || 0) * 100) + '% 环线';
+    const turn = a.turns == null ? '路口—' : a.turns + ' 处路口';
+    const green = a.isSim ? '—' : (a.surface && a.surface.named ? Math.round(a.surface.greenRatio * 100) + '% 绿化' : '路面—');
+    const topSurf = (a.surface && a.surface.tags && a.surface.tags[0]) ? a.surface.tags[0].name : '';
     return `
     <div class="compare-card ${i === currentIdx ? 'active' : ''}" onclick="selectRoute(${i})">
       <div class="compare-title">🏃 路线${i + 1}${r.viaName ? ' · 途经 ' + r.viaName : ''}${r.safeTag ? ' · 🌙 夜跑优选' : ''}</div>
       <div class="compare-meta">
         总距离 <b style="color:var(--primary)">${r.totalKm.toFixed(2)} km</b> ｜ 预计耗时 ${fmtTime(r.totalMin)} ｜ 路况：${r.road}<br>
+        🔄 ${pur} ｜ 🚦 ${turn} ｜ 🌿 ${green}${topSurf ? ' · ' + topSurf : ''}<br>
         预计消耗 ${kcal} kcal ≈ ${(kcal / 200).toFixed(1)} 碗米饭${rvTxt}${r.note ? '<br>' + r.note.replace(/\n/g, '<br>') : ''}
       </div>
     </div>`;
@@ -1590,29 +1994,58 @@ function fitRoute() {
   map.fitBounds(L.latLngBounds(latlngs).pad(0.2), { maxZoom: 17, animate: false });
 }
 
-/* ================= 真实地图绘制 ================= */
+/* ================= 真实地图绘制（荧光描边 + 流动方向 + 公里里程碑） ================= */
+function bearingDeg(a, b) {
+  const dLng = (b[1] - a[1]) * Math.cos(a[0] * Math.PI / 180);
+  const dLat = b[0] - a[0];
+  return (Math.atan2(dLng, dLat) * 180 / Math.PI + 360) % 360;
+}
 function drawOnMap(r) {
   routeLayer.clearLayers();
-  // 优先沿真实路径的完整坐标序列绘制（非仅途径点连线）
+  // 优先沿真实路径的完整坐标序列绘制（非仅里程碑连线）
   const src = r.fullPath || r.waypoints.map(wp => wp.latlng);
   const latlngs = src.map(forMap);
+  if (latlngs.length < 2) return;
+  const isSim = r.road === '模拟路径';
+  const lineColor = isSim ? '#f59e0b' : '#22ff88';   // 模拟路线用橙色警示，真实路网用荧光绿
 
-  // 路线
-  L.polyline(latlngs, { color: '#22c55e', weight: 5, opacity: 0.85 }).addTo(routeLayer);
-  L.polyline(latlngs, { color: '#4ade80', weight: 2, opacity: 0.9, dashArray: '6 8' }).addTo(routeLayer);
-  L.circle(latlngs[0], { radius: 120, color: '#38bdf8', weight: 1, fillOpacity: 0.08 }).addTo(routeLayer);
+  // 1) 深色描边（打底）→ 2) 外发光 → 3) 主线 → 4) 流动虚线（方向）
+  L.polyline(latlngs, { color: '#04121a', weight: 12, opacity: 0.55, lineJoin: 'round', lineCap: 'round' }).addTo(routeLayer);
+  L.polyline(latlngs, { color: lineColor, weight: 11, opacity: 0.16 }).addTo(routeLayer);
+  L.polyline(latlngs, { color: lineColor, weight: 5, opacity: 0.96, lineJoin: 'round', lineCap: 'round' }).addTo(routeLayer);
+  L.polyline(latlngs, { color: '#ffffff', weight: 2.4, opacity: 0.9, dashArray: '1 13', className: 'route-flow' }).addTo(routeLayer);
 
-  // 起点由可拖动的 startMarker 显示（拖动它或点击地图可修改起点）
+  // 方向箭头：沿路径约每 400 米一个，指向前进方向（一眼看清跑向）
+  let acc = 0, lastArrow = 0;
+  const gap = Math.max(0.3, r.totalKm / 8); // 最多约 8 个箭头
+  for (let i = 1; i < latlngs.length; i++) {
+    acc += haversine(latlngs[i - 1], latlngs[i]);
+    if (acc - lastArrow >= gap) {
+      lastArrow = acc;
+      const deg = bearingDeg(latlngs[i - 1], latlngs[i]);
+      const icon = L.divIcon({
+        className: '', iconSize: [16, 16], iconAnchor: [8, 8],
+        html: `<div class="dir-arrow" style="transform:rotate(${deg}deg)">\u25b2</div>`
+      });
+      L.marker(latlngs[i], { icon, interactive: false, keyboard: false }).addTo(routeLayer);
+    }
+  }
+
+  // 起点：可拖动脉冲标记（拖动它或点击地图可修改起点）
   placeStartMarker(latlngs[0]);
   startMarker.bindPopup(`<b>起点：${r.waypoints[0].name}</b><br>拖动此标记可修改起点`);
 
-  // 节点标记：起点用「起」标记、折返点用「终」标记，其余每约 200 米一个圆点标记
-  r.waypoints.forEach((wp, i) => {
-    if (i === 0) return; // 起点由 startMarker 显示
-    if (wp.type === 'end') return; // 环线/往返终点即起点，由「起」标记显示
-    L.circleMarker(latlngs[i], { radius: 4, color: '#16a34a', weight: 1, fillColor: '#4ade80', fillOpacity: 1 })
-      .addTo(routeLayer)
-      .bindPopup(`途经点 · 累计 ${wp.km.toFixed(2)} km`);
+  // 公里里程碑标记（修复旧版本错用 fullPath 索引导致标记错位的 bug）
+  r.waypoints.forEach(wp => {
+    if (wp.type === 'start' || wp.type === 'end') return; // 终点即起点，由脉冲「起」标记显示
+    const isTurn = wp.type === 'turn';
+    const label = isTurn ? '折返' : (wp.merged ? `${Math.round(wp.km)}km\u21c4` : `${Math.round(wp.km)}km`);
+    const icon = L.divIcon({
+      className: '', iconSize: [34, 22], iconAnchor: [17, 11],
+      html: `<div class="km-pin${isTurn ? ' turn' : ''}">${label}</div>`
+    });
+    L.marker(forMap(wp.latlng), { icon, zIndexOffset: 400 }).addTo(routeLayer)
+      .bindPopup(`<b>${wp.name}</b><br>累计 ${wp.km.toFixed(2)} km${wp.merged ? '<br>（去程与回程经过同一地点，已合并）' : ''}`);
   });
 
   // 沿途补给点标记（便利店 🏪 / 公厕 🚻，需高德 Key 且真实路网路线才有）
@@ -1638,16 +2071,17 @@ function drawOnMap(r) {
   }
 }
 
-/* ================= 途径地点清单 ================= */
+/* ================= 里程碑清单 ================= */
 function drawList(r) {
   const ul = document.getElementById('waypointList');
   ul.innerHTML = r.waypoints.map((wp, i) => {
-    const cls = wp.type === 'start' ? 'start' : (wp.type === 'end' ? 'end' : '');
+    const cls = wp.type === 'start' ? 'start' : (wp.type === 'end' || wp.type === 'turn') ? 'end' : '';
+    const idx = wp.type === 'turn' ? '⇄' : (i + 1);
     return `
       <li>
-        <div class="wp-idx ${cls}">${i + 1}</div>
+        <div class="wp-idx ${cls}">${idx}</div>
         <div>
-          <div class="wp-name">${wp.name}</div>
+          <div class="wp-name">${wp.name}${wp.merged ? ' <span style="font-size:11px;color:var(--neon-cyan)">（已合并）</span>' : ''}</div>
           <div class="wp-meta">累计里程 ${wp.km.toFixed(2)} km ｜ 路段：${wp.road}
             ｜ 坐标 ${wp.latlng[0].toFixed(5)}, ${wp.latlng[1].toFixed(5)}</div>
         </div>
@@ -1734,7 +2168,8 @@ function loadSaved(id) {
     waypoints, fullPath: s.fullPath, totalKm: s.totalKm, totalMin: s.totalMin,
     pace: s.pace, safe: false, road: s.road + '（收藏）',
     note: '⭐ 收藏路线。若需重新规划，请以此位置为起点点击「开始规划路线」。',
-    navSteps: null, viaName: null, safeTag: false
+    navSteps: null, viaName: null, safeTag: false,
+    analysis: { purity: 0, turns: null, surface: { tags: [], named: false, greenRatio: 0 }, isReturn: false, isSim: false, engine: 'saved' }
   }];
   renderResult();
 }
